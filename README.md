@@ -400,7 +400,7 @@ https://lanhuapp.com/web/#/item/project/stage?tid=xxx&pid=xxx
 - `lanhu_summarize_page(layers_path, page_name)`
 - `lanhu_crop_icons(layers_path, png_path, output_dir)`
 
-> 详细还原规范参考 `C:/Users/USER/.codex/skills/lanhu-design-restore/SKILL.md`。
+> 详细还原规范参考仓库内 `skills/lanhu-design-restore/SKILL.md`（使用时可将该目录 symlink 到 `~/.codex/skills/lanhu-design-restore/`）。
 
 ### 切图下载
 

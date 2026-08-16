@@ -505,7 +505,7 @@ For the batch workflow of "writing frontend code from Lanhu designs", use the `l
 - `lanhu_summarize_page(layers_path, page_name)`
 - `lanhu_crop_icons(layers_path, png_path, output_dir)`
 
-> For detailed restoration guidelines, see `C:/Users/USER/.codex/skills/lanhu-design-restore/SKILL.md`.
+> For detailed restoration guidelines, see `skills/lanhu-design-restore/SKILL.md` (you can symlink this directory to `~/.codex/skills/lanhu-design-restore/`).
 
 ### Slice Download
 
