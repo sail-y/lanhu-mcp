@@ -57,6 +57,7 @@ English | [简体中文](README.md)
 - **Design Viewing**: Batch download and display UI design images
 - **Slice Extraction**: Automatically identify and export design slices and icon resources
 - **Smart Naming**: Auto-generate semantic filenames based on layer paths
+> **New**: Design restoration now prefers reading the raw Lanhu `sketch_json` layer tree (`get_sketch_json`) to extract exact parameters (`fills`, `borders`, `shadows`, `radius`, fonts, `letterSpacing`). Use `layout_intent.py`, `summarize_page.py`, `crop_icons.py` or the three new MCP tools to generate Vue/React code directly, without relying on flattened annotations.
 
 ### 💬 Team Collaboration Board - Breaking AI IDE Silos
 > 🌟 **Core Innovation**: Enable all developers' AI assistants to share team knowledge and context
@@ -485,6 +486,27 @@ Please show me this design:
 https://lanhuapp.com/web/#/item/project/stage?tid=xxx&pid=xxx
 ```
 
+### Design Restoration Workflow (New)
+
+For the batch workflow of "writing frontend code from Lanhu designs", use the `lanhu/tools` scripts or the three new MCP tools directly, avoiding flattened annotations.
+
+**Recommended pipeline:**
+1. `lanhu_get_designs(url)` → get design list and `image_id`
+2. `fetch_sketch.py <project_id> <image_id> <sketch.json>` → fetch raw layer tree
+3. `extract_layers.py <sketch.json> <layers.json>` → extract structured data
+4. `verify_layers.py <layers.json> [sketch.json]` → verify integrity
+5. `layout_intent.py <layers.json> [container_name]` → determine center / fixed-left / full-width
+6. `summarize_page.py <layers.json> [page_name]` → output page spec (cards/inputs/buttons/switches/icons/text styles)
+7. `crop_icons.py <layers.json> <render.png> <out_dir>` → auto-crop icons
+8. Write Vue/React components manually using values from `layers.json`; do not estimate from screenshots
+
+**Equivalent MCP tool calls:**
+- `lanhu_analyze_layout(layers_path, container_name)`
+- `lanhu_summarize_page(layers_path, page_name)`
+- `lanhu_crop_icons(layers_path, png_path, output_dir)`
+
+> For detailed restoration guidelines, see `C:/Users/USER/.codex/skills/lanhu-design-restore/SKILL.md`.
+
 ### Slice Download
 
 ```
@@ -524,6 +546,9 @@ Show all knowledge base messages about "testing"
 | `lanhu_get_designs` | Get UI design list | Must call before viewing designs |
 | `lanhu_get_ai_analyze_design_result` | Analyze UI designs | View design drafts |
 | `lanhu_get_design_slices` | Get slice information | Download icons and assets |
+| `lanhu_analyze_layout` | Analyze container layout intent (center/fixed-left/full-width) | Before frontend layout restoration |
+| `lanhu_summarize_page` | Extract page spec summary from `layers.json` | Restore frontend page |
+| `lanhu_crop_icons` | Auto-crop icons from rendered design image | When slices are not marked by designer |
 | `lanhu_say` | Post message | Team collaboration, @mentions |
 | `lanhu_say_list` | View message list | Query message history |
 | `lanhu_say_detail` | View message details | View full content |
@@ -536,6 +561,27 @@ Show all knowledge base messages about "testing"
 ```
 lanhu-mcp-server/
 ├── lanhu_mcp_server.py          # Main server file
+├── codex_stdio_bridge.py         # Codex stdio bridge (auto length/line framing)
+├── fetch_sketch.py               # Fetch raw Lanhu sketch_json layer tree
+├── extract_layers.py             # Extract structured layers.json (CLI entry)
+├── verify_layers.py              # Verify layers.json integrity (CLI entry)
+├── layout_intent.py              # Analyze container layout intent (CLI entry)
+├── summarize_page.py             # Generate page spec summary (CLI entry)
+├── crop_icons.py                 # Auto-crop icons from render image (CLI entry)
+├── scripts/                      # More CLI entry points
+│   ├── summarize_page.py
+│   ├── crop_icons.py
+│   └── layout_intent.py
+├── lanhu/                        # Core design-data processing library
+│   ├── __init__.py
+│   └── tools/
+│       ├── layer_extractor.py    # sketch_json → layers.json
+│       ├── layer_verifier.py     # Verify layers.json
+│       ├── layout_analyzer.py    # Layout intent analysis
+│       ├── page_summarizer.py    # Page spec summary
+│       └── icon_cropper.py       # Icon auto-cropping
+├── .codex-plugin/                # Codex plugin metadata
+│   └── plugin.json
 ├── requirements.txt              # Python dependencies
 ├── Dockerfile                    # Docker image
 ├── data/                         # Data storage directory
