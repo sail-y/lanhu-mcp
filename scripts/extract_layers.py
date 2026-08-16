@@ -1,6 +1,6 @@
 """从 lanhu sketch_json 深度提取结构化图层树（组件分组 + 精确样式），替代标注模式的拍平散件。
 
-用法: python extract_layers.py <sketch.json> <out.json>
+用法: python scripts/extract_layers.py <sketch.json> <out.json>
 
 现在核心逻辑已迁移到 lanhu.tools.layer_extractor，本文件保持兼容 CLI。
 """
@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 # 把仓库根目录加入路径，以便直接运行时 import 本地 lanhu 包
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lanhu.tools.layer_extractor import extract_layers
 
 

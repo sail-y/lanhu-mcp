@@ -1,7 +1,7 @@
 """验证 extract_layers.py 的输出完整性（跑完提取后必须执行）。
 
 用法:
-  python verify_layers.py <layers.json> [sketch.json]
+  python scripts/verify_layers.py <layers.json> [sketch.json]
 
 检查项:
   1. 文本 color 缺失数
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 # 把仓库根目录加入路径，以便直接运行时 import 本地 lanhu 包
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lanhu.tools.layer_verifier import verify_layers
 
 

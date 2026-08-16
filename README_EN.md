@@ -57,7 +57,7 @@ English | [简体中文](README.md)
 - **Design Viewing**: Batch download and display UI design images
 - **Slice Extraction**: Automatically identify and export design slices and icon resources
 - **Smart Naming**: Auto-generate semantic filenames based on layer paths
-> **New**: Design restoration now prefers reading the raw Lanhu `sketch_json` layer tree (`get_sketch_json`) to extract exact parameters (`fills`, `borders`, `shadows`, `radius`, fonts, `letterSpacing`). Use `layout_intent.py`, `summarize_page.py`, `crop_icons.py` or the three new MCP tools to generate Vue/React code directly, without relying on flattened annotations.
+> **New**: Design restoration now prefers reading the raw Lanhu `sketch_json` layer tree (`get_sketch_json`) to extract exact parameters (`fills`, `borders`, `shadows`, `radius`, fonts, `letterSpacing`). Use `scripts/layout_intent.py`, `scripts/summarize_page.py`, `scripts/crop_icons.py` or the three new MCP tools to generate Vue/React code directly, without relying on flattened annotations.
 
 ### 💬 Team Collaboration Board - Breaking AI IDE Silos
 > 🌟 **Core Innovation**: Enable all developers' AI assistants to share team knowledge and context
@@ -492,12 +492,12 @@ For the batch workflow of "writing frontend code from Lanhu designs", use the `l
 
 **Recommended pipeline:**
 1. `lanhu_get_designs(url)` → get design list and `image_id`
-2. `fetch_sketch.py <project_id> <image_id> <sketch.json>` → fetch raw layer tree
-3. `extract_layers.py <sketch.json> <layers.json>` → extract structured data
-4. `verify_layers.py <layers.json> [sketch.json]` → verify integrity
-5. `layout_intent.py <layers.json> [container_name]` → determine center / fixed-left / full-width
-6. `summarize_page.py <layers.json> [page_name]` → output page spec (cards/inputs/buttons/switches/icons/text styles)
-7. `crop_icons.py <layers.json> <render.png> <out_dir>` → auto-crop icons
+2. `scripts/fetch_sketch.py <project_id> <image_id> <sketch.json>` → fetch raw layer tree
+3. `scripts/extract_layers.py <sketch.json> <layers.json>` → extract structured data
+4. `scripts/verify_layers.py <layers.json> [sketch.json]` → verify integrity
+5. `scripts/layout_intent.py <layers.json> [container_name]` → determine center / fixed-left / full-width
+6. `scripts/summarize_page.py <layers.json> [page_name]` → output page spec (cards/inputs/buttons/switches/icons/text styles)
+7. `scripts/crop_icons.py <layers.json> <render.png> <out_dir>` → auto-crop icons
 8. Write Vue/React components manually using values from `layers.json`; do not estimate from screenshots
 
 **Equivalent MCP tool calls:**
@@ -562,16 +562,13 @@ Show all knowledge base messages about "testing"
 lanhu-mcp-server/
 ├── lanhu_mcp_server.py          # Main server file
 ├── codex_stdio_bridge.py         # Codex stdio bridge (auto length/line framing)
-├── fetch_sketch.py               # Fetch raw Lanhu sketch_json layer tree
-├── extract_layers.py             # Extract structured layers.json (CLI entry)
-├── verify_layers.py              # Verify layers.json integrity (CLI entry)
-├── layout_intent.py              # Analyze container layout intent (CLI entry)
-├── summarize_page.py             # Generate page spec summary (CLI entry)
-├── crop_icons.py                 # Auto-crop icons from render image (CLI entry)
-├── scripts/                      # More CLI entry points
-│   ├── summarize_page.py
-│   ├── crop_icons.py
-│   └── layout_intent.py
+├── scripts/                      # CLI entry points
+│   ├── fetch_sketch.py           # Fetch raw Lanhu sketch_json layer tree
+│   ├── extract_layers.py         # Extract structured layers.json (CLI entry)
+│   ├── verify_layers.py          # Verify layers.json integrity (CLI entry)
+│   ├── layout_intent.py          # Analyze container layout intent (CLI entry)
+│   ├── summarize_page.py         # Generate page spec summary (CLI entry)
+│   └── crop_icons.py             # Auto-crop icons from rendered image (CLI entry)
 ├── lanhu/                        # Core design-data processing library
 │   ├── __init__.py
 │   └── tools/

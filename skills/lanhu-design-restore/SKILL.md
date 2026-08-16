@@ -50,9 +50,9 @@ D2C 通道失败报 `store_schema_revise 失败: 版本数据不存在` 是**正
 
 0. **【结构盘点，必做】还原前先打印整棵树的容器层级**（name + frame + fill + border + children），从根容器一路看到叶子，先看懂"大容器→留白→子区域"的骨架再动手。教训：之前跳过了这步、按用户反馈局部查，导致把被覆盖的 3670(#F6F9FE) 误当页面底色（真正页面底是 3713 #FFF）——**数据一直在，是没系统性消费**。
 1. `lanhu_get_designs(url)` 拿设计图列表（name/index/id）。
-2. 拉原始图层树：`scripts/fetch_sketch.py <project_id> <image_id> <out.json> [--team_id TEAM_ID] [--server PATH]`（自动读 mcp.json 的 cookie/代理，注入 stub 绕过 IDE 的 codex_stdio_bridge 依赖；server 在 import 时一次性读 cookie，故脚本内先 setenv 再 import）。工作副本 `d:/work/ai/lanhu-mcp/fetch_sketch.py`。
-3. 跑 `scripts/extract_layers.py <sketch.json> <out.json>` 转成结构化 JSON（递归输出 name/type/frame/style[fills/gradients/borders/shadows/radius]/text[font/letterSpacing]，把 sketch 色值转 rgba()）。**脚本以 skill 内置副本为准**：`scripts/extract_layers.py`（随 skill 分发；`d:/work/ai/lanhu-mcp/extract_layers.py` 是工作副本，改动后需同步回 skill）。
-4. **提取后必跑验证器**：`scripts/verify_layers.py <out.json> [sketch.json]`（仓库根目录 `verify_layers.py`）。6 项检查：文本 color 缺失=0、渐变含 gradientType/from/to、border 含 lineAlignment、shadow 含 inset、rotationDeg≠0 列表（人工确认）、传 sketch.json 时抽查文本 color/fontWeight 与原始一致。**全部 PASS 才算提取合格**。
+2. 拉原始图层树：`scripts/fetch_sketch.py <project_id> <image_id> <out.json> [--team_id TEAM_ID] [--server PATH]`（自动读 mcp.json 的 cookie/代理，注入 stub 绕过 IDE 的 codex_stdio_bridge 依赖；server 在 import 时一次性读 cookie）。
+3. 跑 `scripts/extract_layers.py <sketch.json> <out.json>` 转成结构化 JSON（递归输出 name/type/frame/style[fills/gradients/borders/shadows/radius]/text[font/letterSpacing]，把 sketch 色值转 rgba()）。核心逻辑在 `lanhu/tools/layer_extractor.py`。
+4. **提取后必跑验证器**：`scripts/verify_layers.py <out.json> [sketch.json]`（仓库 `scripts/verify_layers.py`）。6 项检查：文本 color 缺失=0、渐变含 gradientType/from/to、border 含 lineAlignment、shadow 含 inset、rotationDeg≠0 列表（人工确认）、传 sketch.json 时抽查文本 color/fontWeight 与原始一致。**全部 PASS 才算提取合格**。
 5. 还原时以结构化 JSON 为准：
    - `frame.left/top/width/height` → 布局与间距
    - 组件树层级 → margin/padding 语义（子层 left 差值 = 间距）
@@ -115,7 +115,7 @@ m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 在把 `frame.left` 转成 CSS 前，先跑一遍，避免把该居中的内容区做成 `padding-left: 242px`。
 
 - MCP: `lanhu_analyze_layout(layers_path, container_name)`
-- CLI: `python layout_intent.py <layers.json> [容器名]` 或 `python scripts/layout_intent.py ...`
+ - CLI: `python scripts/layout_intent.py <layers.json> [容器名]`
 - 输出: `{artboard, container, margins: {left, right, top}, intent, css_recommendation}`
 - 决策规则:
   - 左右空白差 ≤ 24px → `center` → `max-width + margin: 0 auto`
@@ -127,7 +127,7 @@ m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 快速拿到一个页面的“取值溯源表”输入：卡片、输入框、按钮、开关、图标、字体分组。
 
 - MCP: `lanhu_summarize_page(layers_path, page_name)`
-- CLI: `python summarize_page.py <layers.json> [page_name]` 或 `python scripts/summarize_page.py ...`
+ - CLI: `python scripts/summarize_page.py <layers.json> [page_name]`
 - 输出字段: `page / layout / cards / inputs / buttons / switches / icons / text_styles`
 - 用法：先扫 `text_styles` 和 `cards` 建立全局样式锚点，再逐块细化。
 
@@ -136,7 +136,7 @@ m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 设计师未标 slice 时，从蓝湖渲染图按 layers.json 的 frame 自动裁剪图标。
 
 - MCP: `lanhu_crop_icons(layers_path, png_path, output_dir, name_map_json, fmt='webp')`
-- CLI: `python crop_icons.py <layers.json> <render.png> <out_dir> [name_map.json] [webp|png]`
+- CLI: `python scripts/crop_icons.py <layers.json> <render.png> <out_dir> [name_map.json] [webp|png]`
 - 渲染图通常是 2x（如 3840×2160），工具会自动按 `png.width / artboard.width` 缩放坐标。
 - 默认 `webp`；WebP 保存失败时自动回退 `png`。
 - 命名映射 `name_map.json` 示例：`{"icon_Bridge": "icon-bridge"}`。
@@ -145,11 +145,11 @@ m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 
 ```
 get_sketch_json
-    → extract_layers.py
-    → verify_layers.py
-    → layout_intent.py（先确认居中/左对齐/全宽）
-    → summarize_page.py（拿页面规格）
-    → crop_icons.py（导图标）
+    → scripts/extract_layers.py
+    → scripts/verify_layers.py
+    → scripts/layout_intent.py（先确认居中/左对齐/全宽）
+    → scripts/summarize_page.py（拿页面规格）
+    → scripts/crop_icons.py（导图标）
     → 人工写 Vue 组件（数值来自 layer_annotations，禁止截图估算）
 ```
 

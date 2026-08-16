@@ -1,11 +1,11 @@
 """从蓝湖拉取指定设计图的原始 sketch 图层树并落盘（lanhu-design-restore skill 取数第一步）。
 
 用法:
-  python fetch_sketch.py <project_id> <image_id> <out.json> [--team_id TEAM_ID] [--server PATH]
+  python scripts/fetch_sketch.py <project_id> <image_id> <out.json> [--team_id TEAM_ID] [--server PATH]
 
 前置条件（唯一外部依赖）:
   1. lanhu-mcp 已配置在 ~/.workbuddy/mcp.json（env 含 LANHU_COOKIE，可选 http_proxy/https_proxy）
-  2. lanhu_mcp_server.py 可访问——默认探测 <skill_dir>/../lanhu-mcp/lanhu_mcp_server.py，
+  2. lanhu_mcp_server.py 可访问——默认探测 本脚本所在 repo 根目录，
      可用 --server 或环境变量 LANHU_MCP_SERVER 覆盖
 
 说明:
@@ -64,13 +64,12 @@ def main():
         else:
             i += 1
 
-    # 探测 server 路径：--server > LANHU_MCP_SERVER > skill 目录的 lanhu-mcp 工作区 > 常见位置
+    # 探测 server 路径：--server > LANHU_MCP_SERVER > 本脚本所在 repo 根目录
     script_dir = Path(__file__).resolve().parent
+    repo = script_dir.parent
     candidates = [
         server_path,
-        str(script_dir.parent.parent.parent / 'lanhu-mcp' / 'lanhu_mcp_server.py'),  # skill 上级的 lanhu-mcp
-        r'd:/work/ai/lanhu-mcp/lanhu_mcp_server.py',
-        r'C:/Users/USER/.workbuddy/lanhu-mcp/lanhu_mcp_server.py',
+        str(repo / 'lanhu_mcp_server.py'),
     ]
     server = find_server(candidates)
     if not server:

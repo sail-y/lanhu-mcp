@@ -89,7 +89,7 @@
 - **设计图分析升级**：分析时不仅返回设计图预览，还可获取**详细设计参数**（组件尺寸、间距、颜色值、字体大小等），并自动将设计 Schema 转为 **HTML+CSS 代码**，与蓝湖原生导出效果一致，便于 AI 参考实现
 - **切图提取**：自动识别和导出设计切图、图标资源
 - **智能命名**：基于图层路径自动生成语义化文件名
-> **新增**：设计稿还原现在优先读取蓝湖原始 `sketch_json` 图层树（`get_sketch_json`），提取完整 `fills / borders / shadows / radius / 字体 / letterSpacing` 等精确参数，不再依赖拍平散件。配套提供 `layout_intent.py`、`summarize_page.py`、`crop_icons.py` 脚本和 3 个 MCP 工具，可直接按设计稿生成 Vue/React 代码。
+> **新增**：设计稿还原现在优先读取蓝湖原始 `sketch_json` 图层树（`get_sketch_json`），提取完整 `fills / borders / shadows / radius / 字体 / letterSpacing` 等精确参数，不再依赖拍平散件。配套提供 `scripts/layout_intent.py`、`scripts/summarize_page.py`、`scripts/crop_icons.py` 脚本和 3 个 MCP 工具，可直接按设计稿生成 Vue/React 代码。
 
 ### 💬 团队协作留言板 - 打破 AI IDE 孤岛
 > 🌟 **核心创新**：让每个开发者的 AI 助手都能共享团队知识和上下文
@@ -387,12 +387,12 @@ https://lanhuapp.com/web/#/item/project/stage?tid=xxx&pid=xxx
 
 **推荐流水线：**
 1. `lanhu_get_designs(url)` → 拿到设计图列表和 `image_id`
-2. `fetch_sketch.py <project_id> <image_id> <sketch.json>` → 拉原始图层树
-3. `extract_layers.py <sketch.json> <layers.json>` → 提取结构化数据
-4. `verify_layers.py <layers.json> [sketch.json]` → 验证完整性
-5. `layout_intent.py <layers.json> [容器名]` → 确认内容区居中/左对齐/全宽
-6. `summarize_page.py <layers.json> [page_name]` → 输出页面规格（卡片/输入/按钮/开关/图标/字体分组）
-7. `crop_icons.py <layers.json> <render.png> <out_dir>` → 自动裁切图标
+2. `scripts/fetch_sketch.py <project_id> <image_id> <sketch.json>` → 拉原始图层树
+3. `scripts/extract_layers.py <sketch.json> <layers.json>` → 提取结构化数据
+4. `scripts/verify_layers.py <layers.json> [sketch.json]` → 验证完整性
+5. `scripts/layout_intent.py <layers.json> [容器名]` → 确认内容区居中/左对齐/全宽
+6. `scripts/summarize_page.py <layers.json> [page_name]` → 输出页面规格（卡片/输入/按钮/开关/图标/字体分组）
+7. `scripts/crop_icons.py <layers.json> <render.png> <out_dir>` → 自动裁切图标
 8. 人工编写 Vue/React 组件，数值全部来自 `layers.json`，禁止截图估算
 
 **等价的 MCP 工具调用：**
@@ -800,16 +800,13 @@ lanhu_say(
 lanhu-mcp-server/
 ├── lanhu_mcp_server.py          # 主服务器文件（3800+ 行）
 ├── codex_stdio_bridge.py         # Codex stdio 桥接（自动识别 length/line 帧）
-├── fetch_sketch.py               # 拉取蓝湖原始 sketch_json 图层树
-├── extract_layers.py             # 提取结构化 layers.json（CLI 入口）
-├── verify_layers.py              # 验证 layers.json 完整性（CLI 入口）
-├── layout_intent.py              # 分析容器布局意图（CLI 入口）
-├── summarize_page.py             # 生成页面规格摘要（CLI 入口）
-├── crop_icons.py                 # 从渲染图自动裁剪图标（CLI 入口）
-├── scripts/                      # 更多 CLI 脚本入口
-│   ├── summarize_page.py
-│   ├── crop_icons.py
-│   └── layout_intent.py
+├── scripts/                      # CLI 脚本入口
+│   ├── fetch_sketch.py           # 拉取蓝湖原始 sketch_json 图层树
+│   ├── extract_layers.py         # 提取结构化 layers.json（CLI 入口）
+│   ├── verify_layers.py          # 验证 layers.json 完整性（CLI 入口）
+│   ├── layout_intent.py          # 分析容器布局意图（CLI 入口）
+│   ├── summarize_page.py         # 生成页面规格摘要（CLI 入口）
+│   └── crop_icons.py             # 从渲染图自动裁剪图标（CLI 入口）
 ├── lanhu/                        # 设计稿数据处理核心库
 │   ├── __init__.py
 │   └── tools/
