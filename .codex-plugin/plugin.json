@@ -1,0 +1,33 @@
+{
+  "name": "lanhu-mcp",
+  "version": "1.0.0",
+  "description": "Local Lanhu (蓝湖) MCP server for reading design specs and project assets.",
+  "author": {
+    "name": "Local User"
+  },
+  "homepage": "https://lanhuapp.com",
+  "license": "Proprietary",
+  "keywords": [
+    "lanhu",
+    "design",
+    "mcp",
+    "blue-lake"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Lanhu",
+    "shortDescription": "Access local Lanhu design specs and assets via MCP",
+    "longDescription": "Connect to the locally installed Lanhu MCP server to read project info, design specs, and download assets from Lanhu (蓝湖).",
+    "developerName": "Local User",
+    "category": "Design",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://lanhuapp.com",
+    "privacyPolicyURL": "https://lanhuapp.com",
+    "termsOfServiceURL": "https://lanhuapp.com",
+    "defaultPrompt": [],
+    "brandColor": "#1677FF",
+    "screenshots": []
+  }
+}

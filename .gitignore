@@ -21,3 +21,6 @@ data/
 .DS_Store
 .idea/
 .vscode/
+# Local runtime / secrets
+.mcp.json
+cache_designs.py

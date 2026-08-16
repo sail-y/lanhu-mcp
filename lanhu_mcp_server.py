@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 蓝湖Axure文档提取MCP服务器
 使用FastMCP实现
@@ -56,12 +57,16 @@ def _format_lanhu_rfc2822(value: Optional[str]) -> Optional[str]:
     except Exception:
         return value
 
+import codex_stdio_bridge
+codex_stdio_bridge.install()
+
 import httpx
 from fastmcp import Context
 from bs4 import BeautifulSoup
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 from playwright.async_api import async_playwright
+from lanhu.tools import summarize_page, crop_icons, analyze_layout
 
 # 创建FastMCP服务器
 mcp = FastMCP("Lanhu Axure Extractor")
@@ -7160,12 +7165,68 @@ async def lanhu_get_members(
     }
 
 
+@mcp.tool()
+async def lanhu_summarize_page(
+    layers_path: Annotated[str, "已提取的 layers.json 路径"],
+    page_name: Annotated[Optional[str], "要摘要的页面/容器名称；留空则使用整个画板"] = None
+) -> dict:
+    """
+    从 layers.json 生成页面规格摘要（布局、卡片、输入框、按钮、开关、图标、文字样式）。
+
+    USE THIS WHEN user says: 页面规格、摘要、提取页面、生成规格表
+
+    输出为 JSON，包含:
+    - page: 画板信息（尺寸、背景色）
+    - layout: 主容器布局分析（居中/固定左/全宽）
+    - cards: 面板/卡片列表（背景、边框、圆角、阴影）
+    - inputs: 输入/选择框列表
+    - buttons: 按钮列表
+    - switches: 开关/复选框列表
+    - icons: 图标候选列表（可直接传给 lanhu_crop_icons）
+    - text_styles: 文字样式分组统计
+    """
+    return summarize_page(layers_path, page_name)
+
+
+@mcp.tool()
+async def lanhu_crop_icons(
+    layers_path: Annotated[str, "已提取的 layers.json 路径"],
+    png_path: Annotated[str, "蓝湖渲染图 PNG 路径（通常 2x 尺寸）"],
+    output_dir: Annotated[str, "图标输出目录"],
+    name_map_json: Annotated[Optional[str], "可选：layer name 到文件名的 JSON 映射（字符串或文件路径）"] = None,
+    fmt: Annotated[str, "输出格式：webp 或 png，默认 webp"] = "webp"
+) -> dict:
+    """
+    从蓝湖渲染图 + layers.json 自动裁剪图标/小图，默认输出 webp（失败回退 png）。
+
+    USE THIS WHEN user says: 切图、导出图标、裁剪图标、icon
+
+    输出为 JSON，包含 saved/skipped/errors 列表和文件路径。
+    """
+    return crop_icons(layers_path, png_path, output_dir, name_map_json, fmt)
+
+
+@mcp.tool()
+async def lanhu_analyze_layout(
+    layers_path: Annotated[str, "已提取的 layers.json 路径"],
+    container_name: Annotated[Optional[str], "要分析的容器名称；留空则分析整个画板"] = None
+) -> dict:
+    """
+    分析 sketch 图层树中某个容器的布局意图：居中(center) / 固定左偏移(fixed-left) / 全宽(full-width)。
+
+    USE THIS WHEN user says: 布局分析、居中还是左对齐、版心、空白边距
+
+    输出为 JSON，包含 margins、intent、css_recommendation。
+    """
+    return analyze_layout(layers_path, container_name)
+
+
 if __name__ == "__main__":
     # 运行MCP服务器
     # 默认使用HTTP传输；设置 MCP_TRANSPORT=stdio 时可由MCP客户端按需拉起。
     MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "http").lower()
     if MCP_TRANSPORT == "stdio":
-        mcp.run(transport="stdio")
+        mcp.run(transport="stdio", show_banner=False, log_level="CRITICAL")
     else:
         SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
         SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
