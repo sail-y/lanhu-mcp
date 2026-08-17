@@ -1,10 +1,9 @@
 ---
 name: lanhu-design-restore
-description: 从蓝湖（Lanhu）设计稿原始图层树（sketch JSON）取数，并按规范流程做像素级前端还原的方法与工具链。当需要按设计稿还原前端页面、核对样式，且数据源为蓝湖设计稿时使用。适用于解决标注降级模式下拍平散件“只有位置、细节全错”的问题。触发词：蓝湖还原、设计稿还原、lanhu 取数、设计稿细节。
-agent_created: true
+description: 从蓝湖（Lanhu）设计稿原始图层树（sketch JSON）取数，并按规范流程做像素级前端还原。当需要按蓝湖设计稿还原前端页面、核对样式，或发现 lanhu_get_ai_analyze_design_result 返回的拍平散件“只有位置、细节全错”时使用。触发词：蓝湖还原、设计稿还原、lanhu 取数、设计稿细节。
 ---
 
-> 安装与配置见 [INSTALL.md](INSTALL.md)。本 skill 自包含，不依赖任何特定 AI 助手或客户端配置。
+> 配置：环境变量 LANHU_COOKIE 或 skill 根目录 .env 文件；依赖安装见 requirements.txt。
 
 # 蓝湖设计稿像素级还原
 
@@ -47,7 +46,7 @@ agent_created: true
 
 ## 3. 前置条件（启动前确认）
 
-1. **蓝湖 Cookie**：`LANHU_COOKIE` 有效。配置方式：环境变量，或 skill 根目录 `.env` 文件（复制 `.env.example` 填写），详见 [INSTALL.md](INSTALL.md)。
+1. **蓝湖 Cookie**：`LANHU_COOKIE` 有效。环境变量优先；或在 skill 根目录创建 `.env` 填入 `LANHU_COOKIE=...`；运行脚本可加 `--no-dotenv` 跳过 `.env`。
 2. **运行环境**：Python 3.10+，执行 `pip install -r requirements.txt`（httpx、Pillow）。
 3. **工作目录**：在目标项目根目录执行，所有产物落于 `<项目根>/.lanhu/` 固定子目录，不依赖环境变量。跨项目天然隔离，同项目可跨会话复用；需要其他落点时显式传 `--workdir <DIR>`；解析到 skill 自身安装目录时报错退出。
 
@@ -274,55 +273,10 @@ check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比�
 - [ ] **布局**：flex 实现，无绝对定位 div 拼凑；关键元素（按钮、icon）未被压缩或隐藏。
 - [ ] **静态校验**：ESLint / vue-tsc 通过，无命名 / 类型警告。
 
-## 12. Vue 3 输出规范（目标技术栈为 Vue 3 + Element Plus 时）
+## 12. Vue 3 输出规范
 
-以下规则适用于目标技术栈为 **Vue 3 + Element Plus**、且数据已按 §4 流程从 `get_sketch_json` → `extract_layers.py` 取出的场景。
-
-### 12.1 文件格式
-
-- 默认产出 Vue 3 单文件组件（SFC）：`<template>` + `<script setup lang="ts">` + `<style scoped lang="scss">`。
-- 禁止输出 React / RN / Flutter / XML / Compose / Tailwind / Less / CSS-in-JS，除非用户显式要求。
-
-### 12.2 布局与定位
-
-- 主信息流必须用 flex；仅在角标、浮层、重叠装饰、悬浮手势等场景允许 `position: absolute`。
-- 页面根节点优先 `min-height: 100vh`；主内容区优先 `max-width` + `margin: 0 auto` 控制版心。
-- 禁止整页 `transform: scale(...)`。
-- 大屏：居中主栏 + 最大宽度约束；横屏：重排容器，不缩放。
-- 滚动容器：只要垂直内容有超出风险，优先正常文档流或局部滚动；禁止把底部按钮写死到视口外。
-- 移动 H5 吸底区域必须补 `env(safe-area-inset-bottom)`。
-
-### 12.3 资源与切图
-
-- 所有切图 / 图标统一落盘：`src/assets/lanhu/<screen>/`；命名语义化（如 `ic-close.png`、`bg-card.png`、`btn-save.webp`）。
-- 默认格式 `webp`；透明或质量异常可回退 `png`，并在资源清单标注原因。
-- icon / 复杂图形优先使用真实切图：设计师在蓝湖标的 slice 取真图；未标时用 `crop_icons.py` 从渲染图自动裁剪占位图。禁止用 CSS/SVG/emoji 手画近似版，除非图形是纯色填充的基础几何形。
-- 常规资源使用 `import` 或 `new URL(..., import.meta.url).href`。
-
-### 12.4 文本与样式
-
-- 保留文本层级、强调态、弱化态、删除线、换行与截断策略；长文本必须给出多行截断或换行策略，辅助态不得静默省略。
-- 颜色用 sketch 树里的 `text.color` 或 `style.fills` 的 rgba()，禁止 PNG 采样取色。
-- 字距读取 `text.letterSpacing` 并写到 CSS `letter-spacing`。Sketch 的 `PERCENT` 单位必须用 em 表达（如 4.5% → `0.045em`、0.9% → `0.009em`），禁止写 CSS 百分比字面量——CSS 百分比 letter-spacing 属 CSS Text Level 4，老环境静默失效；em 相对自身字号，语义与 PERCENT 一致且兼容所有浏览器。
-- 禁止为单个元素创建额外 CSS class；完全相同字体属性在同一界面出现 ≥2 次才允许抽成共享 class。
-
-### 12.5 输出结构（可选）
-
-复杂页面建议按四段输出，保持可追溯：
-
-- A) 审计区：数据源、image_id、来源模式（`sketch_primary`）、关键尺寸来源。
-- B) 规格表：组件 / 层级、frame、fills、borders、圆角、阴影、字体、资源策略。
-- C) Vue SFC 代码。
-- D) 资源清单：文件路径、格式、来源、是否使用原生绘制。
-
-### 12.6 组件复用原则
-
-**默认倾向复用**：设计稿元素能映射到目标技术栈 UI 库或项目现有组件 / 样式资产时，优先复用并覆盖样式，不新造轮子。
-
-1. 动手前先检索目标项目现有组件 / 类名，有直接对应的就复用；复用方式为组件 / props / CSS 变量 / deep 覆盖，并对齐设计稿数值。
-2. 同一视觉模式（卡片面板、弹窗、动作按钮等）与现有页面一致时，沿用现有类名结构，保持全站视觉统一。
-3. 现成组件与设计稿结构差异过大（如自定义复杂表格、特殊树形）时可自写，但须在输出中说明不复用原因。
-4. 复用的组件仍须按设计稿数值覆盖（表格行高 / 表头底色 / 圆角 / 边框），不能直接沿用默认样式。
+若目标技术栈为 **Vue 3 + Element Plus**，实现交付阶段（§4-C）需遵守对应组件、布局与资源规范。
+详见 [references/vue3-frontend-guide.md](references/vue3-frontend-guide.md)。
 
 ## 13. 程序化调用（Python API）
 
@@ -360,24 +314,9 @@ touch_image(WORKDIR, PROJECT_ID, IMAGE_ID, fetched=True)
 | 验证器失败 | 按 §A4 六项逐项定位（多为字段名映射错误），修复提取逻辑后重跑 A3–A4 |
 | 脚本报“无法导入 lanhu.tools” | 确认在 skill 根目录下运行，或按 §13 通过 `sys.path.insert` 引导 |
 
-## 附录：可选 MCP Server 桥接
 
-本节为可选扩展，不属于 skill 核心能力。skill 本身独立可用，无需阅读本节即可正常使用。
+## 附录
 
-仓库内另含一个独立的 MCP Server 工程（`lanhu_mcp_server.py`），可将同一套 `lanhu/tools` 纯函数暴露为 MCP 工具，供支持 MCP 的客户端调用。关系如下：
+- **Vue 3 + Element Plus 输出规范**：见 [references/vue3-frontend-guide.md](references/vue3-frontend-guide.md)。
+- **可选 MCP Server 桥接**：见 [references/mcp-bridge.md](references/mcp-bridge.md)。
 
-- **共享逻辑**：MCP Server 复用 `lanhu/tools/*.py` 的纯函数，不重复实现。
-- **配置分离**：MCP Server 的配置来自其自身 `.env` / `.mcp.json`，与 skill 的 `.env` 互不读取。
-- **skill 不依赖 MCP**：无论是否部署 MCP Server，本 skill 的 CLI 脚本均可独立运行。
-
-CLI 脚本与 MCP 工具名映射（仅供参考，不是 skill 使用前提）：
-
-| CLI 脚本 | 等效 MCP 工具名 |
-|----------|----------------|
-| `scripts/fetch_sketch.py` | `lanhu_get_sketch_json` |
-| `scripts/extract_layers.py` | `lanhu_extract_layers` |
-| `scripts/verify_layers.py` | `lanhu_verify_layers` |
-| `scripts/layout_intent.py` | `lanhu_analyze_layout` |
-| `scripts/summarize_page.py` | `lanhu_summarize_page` |
-| `scripts/crop_icons.py` | `lanhu_crop_icons` |
-| `scripts/check_spacing.py` | `lanhu_check_spacing` |

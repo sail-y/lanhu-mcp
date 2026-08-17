@@ -1,0 +1,4 @@
+interface:
+  display_name: "蓝湖设计稿还原"
+  short_description: "从蓝湖 sketch 图层树取数并按规范流程像素级还原前端页面"
+  default_prompt: "Use $lanhu-design-restore to restore the UI from the Lanhu design draft by reading the raw sketch JSON instead of the flattened annotation."
