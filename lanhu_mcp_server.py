@@ -66,7 +66,10 @@ from bs4 import BeautifulSoup
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 from playwright.async_api import async_playwright
-from lanhu.tools import summarize_page, crop_icons, analyze_layout
+# 单一真源：lanhu.tools 包位于 skill 目录内（也是分享用 skill 自带副本）。
+# 本 MCP server 与仓库根 scripts/ 统一从这里 import，避免与 skill 副本重复维护。
+sys.path.insert(0, str(Path(__file__).resolve().parent / "skills" / "lanhu-design-restore"))
+from lanhu.tools import summarize_page, crop_icons, analyze_layout, check_container, check_all_containers, compare_containers
 
 # 创建FastMCP服务器
 mcp = FastMCP("Lanhu Axure Extractor")
@@ -7220,6 +7223,32 @@ async def lanhu_analyze_layout(
     """
     return analyze_layout(layers_path, container_name)
 
+
+@mcp.tool()
+async def lanhu_check_spacing(
+    layers_path: Annotated[str, "已提取的 layers.json 路径"],
+    container_name: Annotated[Optional[str], "要分析的容器名称；留空则扫描所有容器候选"] = None,
+    compare_with: Annotated[Optional[str], "可选：逗号分隔的其它 layers.json 路径，用于跨页对比同名容器"] = None
+) -> dict:
+    """
+    从 sketch 图层树分析容器内部 padding / margin / 兄弟间距，并可选跨页对比同名容器。
+
+    USE THIS WHEN user says: 检查间距、容器padding、对齐不一致、跨页对比容器、margin对不对
+
+    输出为 JSON，包含:
+    - container: 容器 frame / padding / 偏离子元素(deviations) / 水平/垂直 gap
+    - summary: 跨页对比结果（尺寸或 padding 不一致时 flagged）
+    """
+    if compare_with:
+        paths = [p.strip() for p in compare_with.split(',') if p.strip()]
+        if not paths:
+            return {'status': 'error', 'message': 'compare_with 参数格式错误，需为逗号分隔路径'}
+        if not container_name:
+            return {'status': 'error', 'message': '跨页对比时必须提供 container_name'}
+        return compare_containers([layers_path] + paths, container_name)
+    if container_name:
+        return check_container(layers_path, container_name)
+    return check_all_containers(layers_path)
 
 if __name__ == "__main__":
     # 运行MCP服务器

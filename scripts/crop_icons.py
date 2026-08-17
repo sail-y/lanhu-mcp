@@ -5,7 +5,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "lanhu-design-restore"))
 from lanhu.tools.icon_cropper import crop_icons
 
 

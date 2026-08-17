@@ -1,7 +1,4 @@
-"""把 layers.json 转成前端可用的页面规格摘要（布局/卡片/输入/按钮/开关/图标/字体）。
-
-可被 MCP 工具与 CLI 脚本共用。
-"""
+"""把 layers.json 转成前端可用的页面规格摘要（布局/卡片/输入/按钮/开关/图标/字体）。"""
 import json
 import re
 from pathlib import Path

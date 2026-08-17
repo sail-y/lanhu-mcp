@@ -1,7 +1,4 @@
-"""从蓝湖 sketch_json 深度提取结构化图层树。
-
-同时被 CLI 脚本和 MCP server 导入使用。
-"""
+"""从蓝湖 sketch_json 深度提取结构化图层树。"""
 import json
 import math
 

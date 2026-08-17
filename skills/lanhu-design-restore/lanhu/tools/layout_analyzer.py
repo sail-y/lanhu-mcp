@@ -1,7 +1,4 @@
-"""根据 sketch 图层树分析容器布局意图（居中 / 固定左偏移 / 全宽）。
-
-可被 MCP 工具与 CLI 脚本共用。
-"""
+"""根据 sketch 图层树分析容器布局意图（居中 / 固定左偏移 / 全宽）。"""
 import json
 from pathlib import Path
 from typing import Optional

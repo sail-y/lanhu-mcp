@@ -24,3 +24,6 @@ data/
 # Local runtime / secrets
 .mcp.json
 cache_designs.py
+
+# Lanhu skill working cache (deterministic per project_id/image_id, local-only)
+.lanhu/

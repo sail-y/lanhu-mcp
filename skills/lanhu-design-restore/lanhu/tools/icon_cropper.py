@@ -1,7 +1,4 @@
-"""从蓝湖渲染图 + layers.json 自动裁剪图标/小图，输出 webp（支持透明，失败回退 png）。
-
-可被 MCP 工具与 CLI 脚本共用。
-"""
+"""从蓝湖渲染图 + layers.json 自动裁剪图标/小图，输出 webp（支持透明，失败回退 png）。"""
 import json
 import re
 from pathlib import Path

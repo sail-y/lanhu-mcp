@@ -1,7 +1,4 @@
-"""验证 extract_layers.py 的输出完整性。
-
-同时被 CLI 脚本和 MCP server 导入使用。
-"""
+"""验证 extract_layers.py 的输出完整性。"""
 import json
 
 

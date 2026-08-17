@@ -18,8 +18,8 @@
 import sys
 from pathlib import Path
 
-# 把仓库根目录加入路径，以便直接运行时 import 本地 lanhu 包
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# 把 skill 目录（lanhu.tools 唯一真源所在）加入路径，以便直接运行时 import 本地 lanhu 包
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "lanhu-design-restore"))
 from lanhu.tools.layer_verifier import verify_layers
 
 
