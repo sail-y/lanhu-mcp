@@ -59,7 +59,7 @@ def main():
     status = result.get("status")
     if status in ("success", "partial") and args.project_id and args.image_id:
         touch_image(workdir, args.project_id, args.image_id, icons=True)
-        print(f"[INFO] manifest updated: {manifest_path(workdir, args.project_id, args.image_id)}")
+        print(f"[INFO] manifest updated: {manifest_path(workdir, args.project_id)}")
     sys.exit(0 if status == "success" else 1)
 
 

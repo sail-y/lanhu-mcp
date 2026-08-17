@@ -45,7 +45,7 @@ def main():
 
     if args.project_id and args.image_id:
         touch_image(workdir, args.project_id, args.image_id, layers=True)
-        print(f"[INFO] manifest updated: {manifest_path(workdir, args.project_id, args.image_id)}")
+        print(f"[INFO] manifest updated: {manifest_path(workdir, args.project_id)}")
 
 
 if __name__ == "__main__":
