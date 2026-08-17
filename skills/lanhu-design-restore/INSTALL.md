@@ -58,7 +58,7 @@ Windows 走系统代理设置、其他平台读 `HTTPS_PROXY` / `HTTP_PROXY` 环
 - 仅在需要把缓存放到非当前目录的位置时，用 `--workdir <DIR>` 显式覆盖（非常规路径）。
 - 若当前目录解析到 skill 自身安装目录内，脚本会直接报错退出（护栏，防止缓存写进 skill）。
 
-## 方式 A：通过 Codex skill-installer 安装
+## 方式 A：通过 skill-installer 安装
 
 ```bash
 git clone https://github.com/<your-fork>/lanhu-mcp.git
@@ -68,7 +68,7 @@ python <path-to-skill-installer>/scripts/install-skill-from-github.py \
   --path skills/lanhu-design-restore
 ```
 
-安装后 skill 会被放到 `$CODEX_HOME/skills/lanhu-design-restore`（默认 `~/.codex/skills/lanhu-design-restore`）。
+安装后 skill 会被放到对应 AI 助手的 skills 目录（如 WorkBuddy 的 `~/.workbuddy/skills/lanhu-design-restore`、Codex 的 `~/.codex/skills/lanhu-design-restore`）。
 
 ## 方式 B：手动复制/软链
 
@@ -76,7 +76,7 @@ python <path-to-skill-installer>/scripts/install-skill-from-github.py \
 git clone https://github.com/<your-fork>/lanhu-mcp.git
 cd lanhu-mcp
 pip install -r skills/lanhu-design-restore/requirements.txt
-ln -s $(pwd)/skills/lanhu-design-restore ~/.codex/skills/lanhu-design-restore
+ln -s $(pwd)/skills/lanhu-design-restore ~/.workbuddy/skills/lanhu-design-restore  # 换成你所用 AI 助手的 skills 目录
 ```
 
 ## 方式 C：不安装 skill，直接当脚本用

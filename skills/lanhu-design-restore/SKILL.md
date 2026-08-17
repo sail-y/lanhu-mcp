@@ -10,14 +10,14 @@ agent_created: true
 
 ## 总纲：工程化优先，还原只是输入
 
-**最终目的是工程化生产实现，不是"看起来像"的还原。** 如果只为视觉一致，100% 绝对定位最快；但我们是做项目、部署 demo，必须符合生产系统开发标准。
+**最终目的是工程化生产实现，不是"看起来像"的还原。** 如果只为视觉一致，100% 绝对定位最快；但生产实现必须符合工程标准。
 
 - **还原数据（sketch 树）是输入**：保证视觉正确（坐标/间距/颜色/圆角/字体精确），仅此而已。
 - **生产实现是输出**：实现方式必须满足工程标准，视觉精度通过"数据覆盖样式"达成，而不是通过绝对定位/魔法值堆出"看起来一样"。
 
-**本项目（aiViewer: Vue 3 + TS + Element Plus）生产标准（每区域必守）**：
-1. `<script setup lang="ts">` + 完整 TS 类型（VO/DTO 来自 `src/api/projectSetting.ts` 契约）
-2. 组件复用优先（Element Plus / BaseDialog / IconSvg / c6-* / 页面样式锚点），覆盖样式而非重造
+**目标技术栈为 Vue 3 + TS + Element Plus 时的生产标准（每区域必守）**：
+1. `<script setup lang="ts">` + 完整 TS 类型（VO/DTO 来自接口契约定义）
+2. 组件复用优先（优先复用目标技术栈 UI 库与项目已有组件，覆盖样式而非重造）
 3. **flex 响应式布局**，禁绝对定位堆布局；浮层控件（收起按钮/角标）例外
 4. 数据对接后端 API，不写死假数据（除明确占位并标注 TODO）
 5. 组件拆分、props/emits 单向数据流；命名规范（多词组件、语义类名）
@@ -38,7 +38,7 @@ agent_created: true
 - 文本节点带字体(font name/type/size/**letterSpacing**/align/color)
 - 设计师命名（面包屑box / title_style1 / subnav / 选择框 inputBox / Button…）
 
-**视觉模型定位（用户定调 2026-08-16）**：有完整结构化数据时还原是**纯数据驱动**，不需要视觉理解；视觉（多模态看图/像素处理）只承担两个角色——①**质检**（看图找偏差，如缝隙/边框可见边）；②**兜底**（设计稿只有图、无结构化数据时才是唯一通道）。**视觉不参与取数/取值**——散件、像素采样都是干扰源（曾把被面板盖住的 #F6F9FE 采成白）。`lanhu_get_ai_analyze_design_result` 输出拍平散件是"工具把数据毁了"，绕过它直读 sketch 树即可。
+**视觉模型定位**：有完整结构化数据时还原是**纯数据驱动**，不需要视觉理解；视觉（多模态看图/像素处理）只承担两个角色——①**质检**（看图找偏差，如缝隙/边框可见边）；②**兜底**（设计稿只有图、无结构化数据时才是唯一通道）。**视觉不参与取数/取值**——散件、像素采样都是干扰源（曾把被面板盖住的 #F6F9FE 采成白）。`lanhu_get_ai_analyze_design_result` 输出拍平散件是"工具把数据毁了"，绕过它直读 sketch 树即可。
 
 D2C 通道失败报 `store_schema_revise 失败: 版本数据不存在` 是**正常降级**，蓝湖官方 D2C 仅私有部署且须 MasterGo（公开套餐不含），**不需要为还原去开通 D2C**。
 
@@ -84,7 +84,7 @@ D2C 通道失败报 `store_schema_revise 失败: 版本数据不存在` 是**正
 
 ## 标准取数流程
 
-0. **【结构盘点，必做】还原前先打印整棵树的容器层级**（name + frame + fill + border + children），从根容器一路看到叶子，先看懂"大容器→留白→子区域"的骨架再动手。教训：之前跳过了这步、按用户反馈局部查，导致把被覆盖的 3670(#F6F9FE) 误当页面底色（真正页面底是 3713 #FFF）——**数据一直在，是没系统性消费**。
+0. **【结构盘点，必做】还原前先打印整棵树的容器层级**（name + frame + fill + border + children），从根容器一路看到叶子，先看懂"大容器→留白→子区域"的骨架再动手。教训：之前跳过了这步、按反馈局部查，导致把被覆盖的 3670(#F6F9FE) 误当页面底色（真正页面底是 3713 #FFF）——**数据一直在，是没系统性消费**。
 1. 取得设计图标识：在蓝湖项目/设计页 URL 中直接读取 `project_id` 与 `image_id`（链接参数可见），无需任何 MCP 工具。
 2. 拉取原始图层树：`scripts/fetch_sketch.py <project_id> <image_id> [--team_id TEAM_ID] [--workdir <DIR>] [--render <本地render.png>]`。脚本直接调用蓝湖 HTTP API，需要 `LANHU_COOKIE` 已配置（配置方式见 [INSTALL.md](INSTALL.md)）。默认落到 `.lanhu/projects/<PID>/images/<IID>/raw/sketch.json` 并写 `manifest.json`（已 `fetched`）；`--render` 可顺手把本地渲染图拷贝到 `raw/render.png`（供 `crop_icons.py` 使用）。
 3. 跑 `scripts/extract_layers.py --project-id <PID> --image-id <IID> [--workdir <DIR>]` 转成结构化 JSON（递归输出 name/type/frame/style[fills/gradients/borders/shadows/radius]/text[font/letterSpacing]，把 sketch 色值转 rgba()）。默认从 `raw/sketch.json` 读、写到 `layers.json` 并标记 `layers_extracted`。（也可 `extract_layers.py <sketch.json> <out.json>` 走显式路径。）
@@ -260,11 +260,11 @@ check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比�
 - [ ] **字体**：font name/size/weight/letterSpacing/align 已对应，未用 CSS 百分比直接写 letter-spacing。
 - [ ] **阴影**：`style.shadows` 读取 offset/blur/spread/color，含 inset 必须标注。
 - [ ] **切图（可选，仅当存在图标/占位图且设计师未提供 slice 时）**：图标需切图为占位图，并在代码中标注“设计师未切图，暂用占位图”。
-- [ ] **组件适配**：优先使用当前项目已有组件库（Element Plus / BaseDialog / IconSvg / 项目样式库等），无重复造轮子；需覆盖样式时用 `:deep()` 或组件提供的样式 hook，不污染全局。
+- [ ] **组件适配**：优先使用目标技术栈的 UI 库与项目已有组件（覆盖样式而非重造），无重复造轮子；需覆盖样式时用 `:deep()` 或组件提供的样式 hook，不污染全局。
 - [ ] **布局**：flex 实现，无绝对定位 div 拼凑；关键元素（按钮、icon）不被压缩或隐藏。
 - [ ] **静态校验**：ESLint / vue-tsc 通过，无命名/类型警告。
 
-## Vue 3 还原输出规范（从 lanhu-vue-plan 合并，已修正数据源）
+## Vue 3 还原输出规范（目标技术栈为 Vue 3 + Element Plus 时）
 
 以下规则仅适用于目标技术栈为 **Vue 3 + Element Plus** 且数据已按上面流程从 `get_sketch_json` → `extract_layers.py` 取出的场景。
 
@@ -326,18 +326,12 @@ check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比�
 - 禁止用 PNG 像素采样取色、测距、测圆角。
 - 禁止用 `"看起来差不多"`、`"大约"` 等估算替代 sketch 树数值。
 
-### 8. 组件复用原则（项目有现成组件时优先复用）
+### 8. 组件复用原则（目标项目有现成组件时优先复用）
 
-**默认倾向复用**：设计稿元素能映射到 Element Plus 或项目现有组件/样式资产时，优先复用并覆盖样式，不新造轮子。
-
-**本项目现成资产清单（先用 grep 查证再决定）**：
-- Element Plus 组件：`el-table`（用 CSS 变量 `--el-table-*` 覆盖表头/行高/边框色）、`el-tree`（`indent`/`node-content` deep 覆盖行高/选中态）、`el-dropdown`、`el-button`（覆盖尺寸/圆角/色）、`el-checkbox`（deep `__inner` 覆盖 16px/圆角）、`el-pagination`、`el-form`/`el-input`。
-- 项目自定义组件：`@/components/dialogCommon/BaseDialog.vue`（弹窗）、`@/components/knowledgeLib/searchForm.vue`/`baseForm.vue`（搜索表单+FormItem 类型）、`IconSvg`（按 name 取图标，如 `userManagement-folder`）。
-- 样式类资产：`c6-*` 系列（`c6-table-container`、`c6-action-btn`、`c6-el-button`/`c6-cancel-btn`/`c6-confirm-btn`、`c6-img-prefix-title` 标题前缀 icon）。
-- 页面样式锚点：`views/userManagement/UserList.vue`（`.user-list-page/.layout-container/.left-panel/.right-panel/.org-tree-panel/.user-table-panel/.section-title/.action-bar/.pagination-bar`）、`RoleManagement.vue`、`components/RolePermissions.vue`（权限树）、`RoleUsers.vue`（关联表格）。
+**默认倾向复用**：设计稿元素能映射到目标技术栈 UI 库或项目现有组件/样式资产时，优先复用并覆盖样式，不新造轮子。
 
 **执行规则**：
-1. 动手前先 grep 项目现有组件/类名，有直接对应的就复用；复用方式 = 组件/props/CSS 变量/deep 覆盖，对齐设计稿数值。
+1. 动手前先 grep 目标项目现有组件/类名，有直接对应的就复用；复用方式 = 组件/props/CSS 变量/deep 覆盖，对齐设计稿数值。
 2. 同一视觉模式（如卡片面板、弹窗、动作按钮）与现有页面一致时，copy 现有类名结构，保持全站视觉统一。
 3. **不硬凑**：现成组件与设计稿结构差异过大（如自定义复杂表格、特殊树形）时可自写，但要在输出里说明"为何不复用"。
 4. 复用≠不改样式：复用的组件仍必须按设计稿数值覆盖（表格行高/表头底色/圆角/边框），不能直接沿用默认样式。
