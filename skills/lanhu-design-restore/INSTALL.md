@@ -1,6 +1,6 @@
 # lanhu-design-restore 技能安装指南
 
-本 skill 不依赖 Codex 专属路径，可安装到任何支持 skill 的 AI 助手，也可单独作为命令行工具使用。
+本 skill 不依赖任何特定 AI 助手的专属路径，可安装到任何支持 skill 的 AI 助手，也可单独作为命令行工具使用。
 
 ## 前置条件
 
@@ -68,7 +68,7 @@ python <path-to-skill-installer>/scripts/install-skill-from-github.py \
   --path skills/lanhu-design-restore
 ```
 
-安装后 skill 会被放到对应 AI 助手的 skills 目录（如 WorkBuddy 的 `~/.workbuddy/skills/lanhu-design-restore`、Codex 的 `~/.codex/skills/lanhu-design-restore`）。
+安装后 skill 会被放到对应 AI 助手的 skills 目录（路径因助手而异）。
 
 ## 方式 B：手动复制/软链
 
@@ -76,7 +76,7 @@ python <path-to-skill-installer>/scripts/install-skill-from-github.py \
 git clone https://github.com/<your-fork>/lanhu-mcp.git
 cd lanhu-mcp
 pip install -r skills/lanhu-design-restore/requirements.txt
-ln -s $(pwd)/skills/lanhu-design-restore ~/.workbuddy/skills/lanhu-design-restore  # 换成你所用 AI 助手的 skills 目录
+ln -s $(pwd)/skills/lanhu-design-restore <你的skills目录>/lanhu-design-restore
 ```
 
 ## 方式 C：不安装 skill，直接当脚本用
