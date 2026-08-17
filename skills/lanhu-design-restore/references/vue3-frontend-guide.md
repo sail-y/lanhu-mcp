@@ -20,7 +20,7 @@
 
 - 所有切图 / 图标统一落盘：`src/assets/lanhu/<screen>/`；命名语义化（如 `ic-close.png`、`bg-card.png`、`btn-save.webp`）。
 - 默认格式 `webp`；透明或质量异常可回退 `png`，并在资源清单标注原因。
-- icon / 复杂图形优先使用真实切图：设计师在蓝湖标的 slice 取真图；未标时用 `crop_icons.py` 从渲染图自动裁剪占位图。禁止用 CSS/SVG/emoji 手画近似版，除非图形是纯色填充的基础几何形。
+- icon / 复杂图形优先使用真实切图：按 §4-B3 决策链，先用 `download_slices.py` 下载设计师标注的 slice 真图；无 slice 时再用 `crop_icons.py` 从渲染图裁剪占位图。禁止用 CSS/SVG/emoji 手画近似版，除非图形是纯色填充的基础几何形。
 - 常规资源使用 `import` 或 `new URL(..., import.meta.url).href`。
 
 ## 4 文本与样式

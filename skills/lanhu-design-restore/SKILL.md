@@ -115,13 +115,20 @@ python scripts/summarize_page.py --project-id <PID> --image-id <IID> [page_name]
 
 输出 `analysis/page_summary.json`（cards / inputs / buttons / switches / icons / text_styles），建立全局样式锚点。
 
-**B3. 图标裁剪（按需，设计师未标 slice 时）**
+**B3. 切图获取（按需，含决策链）**
 
-```bash
-python scripts/crop_icons.py --project-id <PID> --image-id <IID> [--workdir <DIR>] [--fmt webp|png] [--name-map x.json]
-```
+切图资源按以下决策链获取，**有真图用真图，无真图才裁剪占位图**：
 
-输出 `icons/*.webp`（默认 webp，失败自动回退 png），标记 `icons_cropped`。
+1. 检测 sketch 树是否含设计师标注的 slice（`total_slices > 0`）：
+   ```bash
+   python scripts/download_slices.py --project-id <PID> --image-id <IID> [--workdir <DIR>]
+   ```
+   有 slice → 下载真图到 `slices/`（png/svg，通常 2x），标记 `slices_downloaded`；无 slice → 脚本提示改用下一步。
+2. 无 slice 时从渲染图裁剪占位图：
+   ```bash
+   python scripts/crop_icons.py --project-id <PID> --image-id <IID> [--workdir <DIR>] [--fmt webp|png] [--name-map x.json]
+   ```
+   输出 `icons/*.webp`（默认 webp，失败自动回退 png），标记 `icons_cropped`。
 
 **B4. 容器间距校验（门禁）**
 
@@ -154,7 +161,8 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
             sketch.json             # fetch_sketch 原始 API 返回
             render.png              # 蓝湖渲染图（用户提供 / --render 拷贝）
           layers.json               # extract_layers 提取的结构化图层树
-          icons/                    # crop_icons 输出（webp/png）
+          slices/                   # download_slices 输出（设计师标注的真图）
+          icons/                    # crop_icons 输出（裁剪渲染图的占位图）
           analysis/
             layout_intent.json      # layout_intent
             page_summary.json       # summarize_page
@@ -232,7 +240,8 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 | `verify_layers.py` | 提取完整性校验 | `python scripts/verify_layers.py --project-id <PID> --image-id <IID> [--workdir <DIR>]` |
 | `layout_intent.py` | 布局意图分析 | `python scripts/layout_intent.py --project-id <PID> --image-id <IID> [容器名] [--workdir <DIR>]` |
 | `summarize_page.py` | 页面规格摘要 | `python scripts/summarize_page.py --project-id <PID> --image-id <IID> [page_name] [--workdir <DIR>]` |
-| `crop_icons.py` | 图标自动裁剪 | `python scripts/crop_icons.py --project-id <PID> --image-id <IID> [--workdir <DIR>] [--fmt webp\|png]` |
+| `download_slices.py` | 下载设计师标注的切图（真图） | `python scripts/download_slices.py --project-id <PID> --image-id <IID> [--workdir <DIR>]`；无 slice 时提示改用 crop_icons |
+| `crop_icons.py` | 从渲染图裁剪图标（无 slice 时的占位图） | `python scripts/crop_icons.py --project-id <PID> --image-id <IID> [--workdir <DIR>] [--fmt webp\|png]` |
 | `check_spacing.py` | 容器间距校验 / 跨页对比 | `python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] [--workdir <DIR>]`；跨页：`--compare <a.json> <b.json> --name <容器名>` |
 
 ### 推荐流水线
@@ -243,7 +252,8 @@ extract_layers.py --project-id PID --image-id IID            # → layers.json
 verify_layers.py  --project-id PID --image-id IID            # → analysis/verify.json（门禁）
 layout_intent.py  --project-id PID --image-id IID            # → analysis/layout_intent.json
 summarize_page.py --project-id PID --image-id IID            # → analysis/page_summary.json
-crop_icons.py     --project-id PID --image-id IID            # → icons/*.webp
+download_slices.py --project-id PID --image-id IID           # → slices/*（有 slice 时）
+crop_icons.py     --project-id PID --image-id IID            # → icons/*.webp（无 slice 时兜底）
 check_spacing.py  --project-id PID --image-id IID '容器名'    # → analysis/spacing.json（门禁）
 check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比（显式路径）
     → 依据 layers.json / analysis/* 实现目标技术栈组件（数值一律取自结构化数据，禁止截图估算）

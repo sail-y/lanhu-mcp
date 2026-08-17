@@ -15,7 +15,8 @@
                 sketch.json             # fetch_sketch 原始 API 返回
                 render.png              # 蓝湖渲染图（用户提供 / 下载）
               layers.json               # extract_layers 提取的结构化图层树
-              icons/                    # crop_icons 输出（webp/png）
+              slices/                   # download_slices 输出（设计师标注的真图）
+              icons/                    # crop_icons 输出（裁剪渲染图的占位图）
               analysis/
                 layout_intent.json      # layout_intent
                 page_summary.json       # summarize_page
@@ -79,6 +80,10 @@ def raw_dir(workdir: Path, project_id: str, image_id: str) -> Path:
     return image_dir(workdir, project_id, image_id) / "raw"
 
 
+def slices_dir(workdir: Path, project_id: str, image_id: str) -> Path:
+    return image_dir(workdir, project_id, image_id) / "slices"
+
+
 def icons_dir(workdir: Path, project_id: str, image_id: str) -> Path:
     return image_dir(workdir, project_id, image_id) / "icons"
 
@@ -119,6 +124,7 @@ def _new_record() -> dict:
         "sketch_cached": False,
         "layers_extracted": False,
         "render_present": False,
+        "slices_downloaded": False,
         "icons_cropped": False,
         "analysis": {k: False for k in ANALYSIS_KINDS},
     }
@@ -153,6 +159,7 @@ def touch_image(
     fetched: bool = False,
     layers: bool = False,
     render: bool = False,
+    slices: bool = False,
     icons: bool = False,
     analysis_kind: Optional[str] = None,
 ) -> dict:
@@ -172,6 +179,8 @@ def touch_image(
         rec["layers_extracted"] = True
     if render:
         rec["render_present"] = True
+    if slices:
+        rec["slices_downloaded"] = True
     if icons:
         rec["icons_cropped"] = True
     if analysis_kind:

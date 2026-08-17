@@ -17,5 +17,6 @@ CLI 脚本与 MCP 工具名映射（仅供参考，不是 skill 使用前提）�
 | `scripts/verify_layers.py` | `lanhu_verify_layers` |
 | `scripts/layout_intent.py` | `lanhu_analyze_layout` |
 | `scripts/summarize_page.py` | `lanhu_summarize_page` |
+| `scripts/download_slices.py` | `lanhu_get_design_slices` |
 | `scripts/crop_icons.py` | `lanhu_crop_icons` |
 | `scripts/check_spacing.py` | `lanhu_check_spacing` |
