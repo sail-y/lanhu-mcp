@@ -42,13 +42,15 @@ def verify_layers_dict(layers_tree):
     borders = []
     walk(layers_tree, lambda n: borders.extend((n.get('name'), b) for b in (n.get('style') or {}).get('borders') or []))
     no_align = [(nm, b) for nm, b in borders if not b.get('lineAlignment')]
+    no_thickness = [(nm, b) for nm, b in borders if b.get('thickness') is None]
     aligns = {}
     for _, b in borders:
         aligns[b.get('lineAlignment')] = aligns.get(b.get('lineAlignment'), 0) + 1
-    checks.append({'name': 'border 含 lineAlignment',
-                   'detail': f'{len(borders)} 个边框，{len(no_align)} 缺对齐; 分布 {aligns}',
-                   'ok': len(no_align) == 0,
-                   'extra': [f'"{nm}"' for nm, _ in no_align[:5]]})
+    checks.append({'name': 'border 含 lineAlignment 与 thickness',
+                   'detail': (f'{len(borders)} 个边框，{len(no_align)} 缺对齐，{len(no_thickness)} 缺粗细; '
+                              f'分布 {aligns}'),
+                   'ok': len(no_align) == 0 and len(no_thickness) == 0,
+                   'extra': [f'"{nm}"' for nm, _ in (no_align + no_thickness)[:5]]})
 
     shadows = []
     walk(layers_tree, lambda n: shadows.extend((n.get('name'), s) for s in (n.get('style') or {}).get('shadows') or []))

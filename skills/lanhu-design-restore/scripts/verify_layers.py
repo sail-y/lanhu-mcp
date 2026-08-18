@@ -22,17 +22,26 @@ def main():
     parser = argparse.ArgumentParser(description="Verify layers.json extraction quality")
     parser.add_argument("layers", nargs="?", help="layers.json path (or use --project-id/--image-id)")
     parser.add_argument("sketch", nargs="?", help="sketch.json path (optional, for cross-check)")
+    parser.add_argument("--sketch", dest="sketch_opt", default=None,
+                        help="sketch.json path (explicit; avoids positional ambiguity)")
     parser.add_argument("--project-id", default=None)
     parser.add_argument("--image-id", default=None)
     parser.add_argument("--workdir", default=None)
     args = parser.parse_args()
 
+    sketch_arg = args.sketch_opt or args.sketch
+    # `--project-id PID --image-id IID sketch.json` 用法中，argparse 会把 sketch 路径
+    # 绑定到第一个位置参数 layers 上（layers 恒为标准 .lanhu 路径，无需传入）；救回。
+    if args.project_id and args.image_id and not sketch_arg \
+            and args.layers and str(args.layers).endswith(".json"):
+        sketch_arg = args.layers
+        args.layers = None
+
     workdir = resolve_workdir(args.workdir)
 
     if args.project_id and args.image_id:
         lp = layers_path(workdir, args.project_id, args.image_id)
-        sketch_p = args.sketch
-        result = verify_layers(str(lp), sketch_p)
+        result = verify_layers(str(lp), sketch_arg)
         out = analysis_path(workdir, args.project_id, args.image_id, "verify")
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -41,9 +50,9 @@ def main():
     else:
         if not args.layers:
             print("用法: python verify_layers.py <layers.json> [sketch.json]  "
-                  "[或 --project-id PID --image-id IID --workdir DIR]")
+                  "[或 --project-id PID --image-id IID [sketch.json] --workdir DIR]")
             sys.exit(2)
-        result = verify_layers(args.layers, args.sketch)
+        result = verify_layers(args.layers, sketch_arg)
 
     print(f'===== 验证: {Path(args.layers).name if args.layers else "image"} =====')
     for c in result["checks"]:

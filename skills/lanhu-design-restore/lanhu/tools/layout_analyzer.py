@@ -39,6 +39,10 @@ def analyze_layout_dict(layers_tree: dict, container_name: Optional[str] = None)
     ab = artboard.get('frame', {})
     ab_w = ab.get('width', 0)
     ab_h = ab.get('height', 0)
+    # artboard frame 在页面坐标系里可能带负原点（如 (-1863,-1691)），
+    # 而图层 frame 通常已是画板内相对坐标；留白必须按画板本地空间计算。
+    ab_left = ab.get('left', 0)
+    ab_top = ab.get('top', 0)
 
     container = find_node(layers_tree, container_name)
     if not container:
@@ -48,11 +52,27 @@ def analyze_layout_dict(layers_tree: dict, container_name: Optional[str] = None)
             'artboard': {'width': ab_w, 'height': ab_h},
         }
 
+    if container is artboard:
+        return {
+            'status': 'success',
+            'artboard': {'width': ab_w, 'height': ab_h},
+            'container': {'layer_id': container.get('name'), 'type': container.get('type'),
+                          'left': 0, 'top': 0, 'width': ab_w, 'height': ab_h},
+            'margins': {'left': 0, 'right': 0, 'top': 0},
+            'intent': 'artboard-root',
+            'css_recommendation': '目标即画板自身；请传入具体容器名分析其版心策略。',
+        }
+
     fr = container.get('frame', {})
     left = fr.get('left', 0)
     top = fr.get('top', 0)
     width = fr.get('width', 0)
     height = fr.get('height', 0)
+    # 若图层 frame 是页面绝对坐标（left 为负或超出画板范围），先减去画板原点归一化
+    if left < 0 or left + width > ab_w + TOLERANCE:
+        left -= ab_left
+    if top < 0:
+        top -= ab_top
 
     right = ab_w - left - width
 

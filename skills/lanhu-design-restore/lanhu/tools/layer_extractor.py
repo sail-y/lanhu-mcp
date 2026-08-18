@@ -53,7 +53,8 @@ def style_to_css(st, node):
         if not b.get('isEnabled', True):
             continue
         col = css_color(b.get('color'))
-        borders.append({'thickness': b.get('thickness'),
+        # 蓝湖原始 JSON 边框粗细字段是 width（thickness 不存在，兜底保留）
+        borders.append({'thickness': b.get('width', b.get('thickness')),
                         'color': f'rgba({col["r"]},{col["g"]},{col["b"]},{col["a"]})' if col else None,
                         'lineAlignment': b.get('lineAlignment')})
     if borders:

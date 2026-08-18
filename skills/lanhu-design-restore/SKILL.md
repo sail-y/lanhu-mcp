@@ -90,7 +90,7 @@ python scripts/verify_layers.py --project-id <PID> --image-id <IID> [--workdir <
 
 1. 文本 color 缺失数为 0。
 2. 渐变节点含 gradientType/from/to。
-3. border 含 lineAlignment。
+3. border 含 lineAlignment 与 thickness（粗细来自原始 `width` 字段，`width=0` 表示无边框）。
 4. 阴影含 inset。
 5. rotationDeg≠0 的节点列表（人工确认）。
 6. 传入 sketch.json 时抽查文本 color/fontWeight 与原始一致。
@@ -199,12 +199,12 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 - **阴影**：sketch 原始字段为 `x`/`y`（偏移）、`blur`、`spread`、`inset`（方向标记），非 `offsetX/offsetY/blurRadius`。`inset: true` → `box-shadow: inset ...`。示例：`x0 y4 blur10 spread0 inset:true` → `inset 0 4px 10px rgba(0,0,0,0.05)`。
 - **文本颜色**：位于 `text.style.color`，非 `font.color`。任何文本色值必须查 `layers.json` 的 `text.color`。
 - **渐变**：fill 含 `from`/`to`（局部坐标，dy=0→水平、dx=0→垂直）与 `type`（0=linear、1=radial）。线性渐变 CSS 角度由 from/to 推导。
-- **边框**：含 `lineAlignment`（inside/center/outside）。inside 在 border-box 下视觉一致；center 描边两侧各半。`paths[].type` 为 `"path"` 时 border 仅沿路径描边（单线），`"rect"` 才是四边边框；可见边须以像素扫描（1px 步长）确认。
+- **边框**：含 `lineAlignment`（inside/center/outside）与 `thickness`（对应原始字段 `width`；`width=0` = 无边框，须如实区分，勿统一补边框）。inside 在 border-box 下视觉一致；center 描边两侧各半。`paths[].type` 为 `"path"` 时 border 仅沿路径描边（单线），`"rect"` 才是四边边框；可见边须以像素扫描（1px 步长）确认。
 - **变换 / 旋转**：旋转节点的 `frame` 是旋转后包围盒（如 9×9 方块旋转 45° 后 bbox 为 13.41×13.41）。`rotationDeg` 由 transform 2×2 线性部分推导（θ=atan2(b,a)）。
 - **文本附加属性**：`fontWeight`（数值，较 fontType 精确）、`verticalAlignment`、`underline`、`linethrough`、`lineSpacing` 均需提取。
 - **sharedStyle**：设计规范色值命名（如 `填充/Primary2`），与 fills 同源，可作色值来源注释与验证。
 - **无需提取的字段**：节点级 `radius`（仅 artboard 自身 0 值）、`style.blurs`、`blendMode`、`text.value`（与 style.content 全等）、`text.styles` 多段（全单段）、`paths.booleanOperation/subpaths`、`realFrame`（差异仅旋转节点，transform 已覆盖）、fill/border/shadow 各自 opacity（全 1）、`visible=false` 节点、`style.isEnabled`、symbolInstance 的 symbolId/overrides。
-- **提取脚本修改后的自检清单**：①文本 color 缺失数为 0；②渐变节点含 from/to/gradientType；③border 含 lineAlignment；④阴影含 inset；⑤列出 rotationDeg≠0 节点核对；⑥随机抽取 1 个文本对比原始 sketch 的 style.color/fontWeight。
+- **提取脚本修改后的自检清单**：①文本 color 缺失数为 0；②渐变节点含 from/to/gradientType；③border 含 lineAlignment 与 thickness；④阴影含 inset；⑤列出 rotationDeg≠0 节点核对；⑥随机抽取 1 个文本对比原始 sketch 的 style.color/fontWeight。
 
 ## 8. 布局与间距规则
 
@@ -242,7 +242,7 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 | `summarize_page.py` | 页面规格摘要 | `python scripts/summarize_page.py --project-id <PID> --image-id <IID> [page_name] [--workdir <DIR>]` |
 | `download_slices.py` | 下载设计师标注的切图（真图） | `python scripts/download_slices.py --project-id <PID> --image-id <IID> [--workdir <DIR>]`；无 slice 时提示改用 crop_icons |
 | `crop_icons.py` | 从渲染图裁剪图标（无 slice 时的占位图） | `python scripts/crop_icons.py --project-id <PID> --image-id <IID> [--workdir <DIR>] [--fmt webp\|png]` |
-| `check_spacing.py` | 容器间距校验 / 跨页对比 | `python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] [--workdir <DIR>]`；跨页：`--compare <a.json> <b.json> --name <容器名>` |
+| `check_spacing.py` | 容器间距校验 / 跨页对比 | `python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名 | --container 容器名] [--workdir <DIR>]`；跨页：`--compare <a.json> <b.json> --name <容器名>` |
 
 ### 推荐流水线
 

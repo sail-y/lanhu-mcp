@@ -42,6 +42,27 @@ def _sanitize_name(name: str) -> str:
     return clean or "slice"
 
 
+def _decode_body(content: bytes, fmt: str) -> bytes:
+    """还原切图响应体。
+
+    蓝湖 MasterSlice 的 SVG 响应体被整体包成 JSON 字符串（首字节 ``"``、尾字节
+    ``"``，内部 ``"`` 转义为 ``\\"``，即 ``"<svg ...>"``）。若直接落盘会得到非法
+    XML，任何 SVG 查看器都打不开。此处检测并解包，正常 SVG（以 ``<`` 开头）则原样返回。
+    PNG 等二进制不受影响。
+    """
+    if fmt != "svg":
+        return content
+    text = content.decode("utf-8", errors="replace").strip()
+    if text.startswith('"') and text.endswith('"'):
+        try:
+            unwrapped = json.loads(text)
+        except Exception:
+            return content
+        if isinstance(unwrapped, str):
+            return unwrapped.encode("utf-8")
+    return content
+
+
 def _find_slices(sketch: dict) -> list[dict]:
     """递归提取切图列表（元数据 + 下载地址），兼容新旧结构与 Photoshop。"""
     meta = sketch.get("meta") or {}
@@ -173,7 +194,7 @@ def download_slices(sketch: dict, out_dir: Path, cookie: str | None = None) -> d
             try:
                 resp = client.get(item["download_url"])
                 resp.raise_for_status()
-                target.write_bytes(resp.content)
+                target.write_bytes(_decode_body(resp.content, item["format"]))
                 downloaded += 1
             except Exception as exc:  # noqa: BLE001
                 failed.append({"name": item["name"], "url": item["download_url"], "error": str(exc)})

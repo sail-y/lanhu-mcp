@@ -22,16 +22,26 @@ def main():
     parser = argparse.ArgumentParser(description="Summarize page spec from layers.json")
     parser.add_argument("layers", nargs="?", help="layers.json path (or use --project-id/--image-id)")
     parser.add_argument("page", nargs="?", help="page name (optional)")
+    parser.add_argument("--page", dest="page_opt", default=None,
+                        help="page name (explicit; avoids positional ambiguity)")
     parser.add_argument("--project-id", default=None)
     parser.add_argument("--image-id", default=None)
     parser.add_argument("--workdir", default=None)
     args = parser.parse_args()
 
+    page_name = args.page_opt or args.page
+    # 文档用法 `--project-id PID --image-id IID page_name` 中，argparse 会把页面名
+    # 绑定到第一个位置参数 layers 上；这里把它救回来（.json 路径除外）。
+    if args.project_id and args.image_id and not page_name \
+            and args.layers and not str(args.layers).endswith(".json"):
+        page_name = args.layers
+        args.layers = None
+
     workdir = resolve_workdir(args.workdir)
 
     if args.project_id and args.image_id:
         lp = layers_path(workdir, args.project_id, args.image_id)
-        result = summarize_page(str(lp), args.page)
+        result = summarize_page(str(lp), page_name)
         out = analysis_path(workdir, args.project_id, args.image_id, "page_summary")
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -40,9 +50,9 @@ def main():
     else:
         if not args.layers:
             print("用法: python summarize_page.py <layers.json> [page_name]  "
-                  "[或 --project-id PID --image-id IID --workdir DIR]")
+                  "[或 --project-id PID --image-id IID page_name --workdir DIR]")
             sys.exit(2)
-        result = summarize_page(args.layers, args.page)
+        result = summarize_page(args.layers, page_name)
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
     sys.exit(0 if result.get("status") == "success" else 1)

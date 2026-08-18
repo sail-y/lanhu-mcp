@@ -27,6 +27,8 @@ def main():
     parser = argparse.ArgumentParser(description="Check container spacing from layers.json")
     parser.add_argument("layers", nargs="?", help="layers.json path (single mode; or use --project-id/--image-id)")
     parser.add_argument("container", nargs="?", help="container name (optional)")
+    parser.add_argument("--container", dest="container_opt", default=None,
+                        help="container name (explicit; avoids positional ambiguity)")
     parser.add_argument("--project-id", default=None)
     parser.add_argument("--image-id", default=None)
     parser.add_argument("--workdir", default=None)
@@ -34,6 +36,14 @@ def main():
                         help="2+ layers.json paths for cross-page compare")
     parser.add_argument("--name", default=None, help="container name for --compare")
     args = parser.parse_args()
+
+    container_name = args.container_opt or args.container
+    # 文档用法 `--project-id PID --image-id IID 容器名` 中，argparse 会把容器名
+    # 绑定到第一个位置参数 layers 上；这里把它救回来（.json 路径除外）。
+    if args.project_id and args.image_id and not container_name \
+            and args.layers and not str(args.layers).endswith(".json"):
+        container_name = args.layers
+        args.layers = None
 
     workdir = resolve_workdir(args.workdir)
 
@@ -49,7 +59,6 @@ def main():
 
     if args.project_id and args.image_id:
         lp = layers_path(workdir, args.project_id, args.image_id)
-        container_name = args.container
         result = check_container(str(lp), container_name) if container_name else check_all_containers(str(lp))
         out = analysis_path(workdir, args.project_id, args.image_id, "spacing")
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -66,7 +75,6 @@ def main():
               "  python check_spacing.py --compare <a.json> <b.json> ... --name <容器名>")
         sys.exit(2)
     layers_path_arg = args.layers
-    container_name = args.container
     if container_name:
         result = check_container(layers_path_arg, container_name)
     else:
