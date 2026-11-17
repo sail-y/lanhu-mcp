@@ -14,10 +14,28 @@ def load_json(path: str) -> dict:
 
 
 def find_node(root: dict, name: str) -> Optional[dict]:
+    """按 node_id 优先、其次按 name 查找。
+
+    node_id 是稳定身份（上游 normalize 生成）；name 在蓝湖里大量重名
+    （实测一个 584 节点页面有 68 组重名、涉及 414 个节点），能用 id 就别用名字。
+    """
+    by_id = _find_by_id(root, name)
+    if by_id is not None:
+        return by_id
     if root.get('name') == name:
         return root
     for c in root.get('children', []):
         n = find_node(c, name)
+        if n:
+            return n
+    return None
+
+
+def _find_by_id(root: dict, node_id) -> Optional[dict]:
+    if node_id and root.get('node_id') == node_id:
+        return root
+    for c in root.get('children', []):
+        n = _find_by_id(c, node_id)
         if n:
             return n
     return None
@@ -172,6 +190,7 @@ def analyze_container(node: dict) -> Dict[str, Any]:
 
     return {
         'name': node.get('name'),
+        'node_id': node.get('node_id'),
         'type': node.get('type'),
         'frame': frame,
         'child_count': len(children),

@@ -67,10 +67,48 @@ def verify_layers_dict(layers_tree):
                    'ok': True,
                    'extra': []})
 
+    # ---- 上游 normalize 产出的元信息：坐标可信度 + 稳定身份 ----
+    meta = layers_tree.get('_meta') or {}
+    cm = meta.get('coordinate_mapping') or {}
+    if cm:
+        verified = cm.get('verified')
+        checks.append({
+            'name': '坐标映射已验证',
+            'detail': f"verified={verified} strategy={cm.get('strategy')}"
+                      f"{'（未验证时区域裁图/导出不可用，仅能看无标注全景）' if verified is False else ''}",
+            'ok': verified is not False,
+            'extra': list((cm.get('unresolved_node_ids') or [])[:5]),
+        })
+
+    ids = []
+    walk(layers_tree, lambda n: ids.append(n.get('node_id')))
+    missing = sum(1 for i in ids if not i)
+    dup = len(ids) - missing - len({i for i in ids if i})
+    checks.append({
+        'name': 'node_id 齐全且唯一',
+        'detail': f'{len(ids)} 个节点，缺 id {missing} 个，重复 {dup} 个',
+        'ok': missing == 0 and dup == 0,
+        'extra': [],
+    })
+
+    gaps_summary = meta.get('gaps_summary') or {}
+    if gaps_summary:
+        # transform 未应用属已知行为（本 skill 用 rotationDeg 表达旋转），不算失败
+        blocking = {k: v for k, v in gaps_summary.items()
+                    if k in ('nonzero_canvas_origin_unverified', 'unsupported_source_structure',
+                             'missing_canvas_dimensions')}
+        checks.append({
+            'name': '上游诊断无阻断项',
+            'detail': f'gaps={gaps_summary}',
+            'ok': not blocking,
+            'extra': list(blocking),
+        })
+
     all_pass = all(c['ok'] for c in checks)
     return {'checks': checks, 'all_pass': all_pass, 'total_texts': len(txts),
             'total_gradients': len(grads), 'total_borders': len(borders),
-            'total_shadows': len(shadows), 'rotation_nodes': rots}
+            'total_shadows': len(shadows), 'rotation_nodes': rots,
+            'engine': meta.get('engine'), 'gaps_summary': gaps_summary}
 
 
 def verify_against_sketch(layers_tree, sketch_data):

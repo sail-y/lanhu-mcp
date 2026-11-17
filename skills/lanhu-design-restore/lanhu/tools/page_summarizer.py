@@ -129,6 +129,7 @@ def summarize_node(node, breadcrumb, artboard_width):
     text = node.get('text') or {}
     item = {
         'layer_id': node.get('name'),
+        'node_id': node.get('node_id'),
         'type': node.get('type'),
         'path': ' / '.join(breadcrumb),
         'frame': fr,
