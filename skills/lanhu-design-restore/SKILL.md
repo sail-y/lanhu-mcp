@@ -186,7 +186,9 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 
 **C2. 静态校验**：ESLint / vue-tsc 通过，无命名 / 类型警告。
 
-**C3. 最终检查**：逐项通过 §11 检查清单后交付。
+**C3. 对账门禁（强制）**：跑 `scripts/audit_restore.py --fail-on-missing`，把「设计有·代码未出现」清零——静态文案、颜色、圆角、边框、字号、字距、阴影逐项比对。确认属项目规范或示例数据的，登记进 `--accept` 清单（模板 `references/audit_accept.template.json`，随页面一起提交），不允许只在对话里口头认定。退出码 0 后再逐项过 §11 清单交付。
+
+> **C3 管什么、不管什么**：管离散样式 token 与静态文案；**不管布局/间距**（几何只出参考清单）、不管交互态与字体字形。布局必须另做 DOM 实测（浏览器读 `getComputedStyle` + `getBoundingClientRect` 与设计 `frame` 对齐），不得用本脚本的"通过"当作布局验收依据。
 
 ## 5. 目录约定（.lanhu）
 
@@ -290,6 +292,7 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 | `download_slices.py` | 下载设计师标注的切图（真图） | `python scripts/download_slices.py --project-id <PID> --image-id <IID> [--workdir <DIR>]`；无 slice 时提示改用 crop_icons |
 | `crop_icons.py` | 从渲染图裁剪图标（无 slice 时的占位图） | `python scripts/crop_icons.py --project-id <PID> --image-id <IID> [--workdir <DIR>] [--fmt webp\|png]` |
 | `check_spacing.py` | 容器间距校验 / 跨页对比 | `python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名 | --container 容器名] [--workdir <DIR>]`；跨页：`--compare <a.json> <b.json> --name <容器名>` |
+| `audit_restore.py` | **交付门禁**：设计稿 ↔ 代码逐项对账（文案/颜色/圆角/边框/字号/字距/阴影） | `python scripts/audit_restore.py --layers <layers.json>[,...] --code <file.vue>[,...] --root auto [--extra-root 弹窗面板] [--var-file <base.css>] [--accept <accept.json>] [--fail-on-missing]` |
 
 ### 推荐流水线
 
@@ -306,6 +309,9 @@ crop_icons.py     --project-id PID --image-id IID            # → icons/*.webp�
 check_spacing.py  --project-id PID --image-id IID '容器名'    # → analysis/spacing.json（门禁）
 check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比（显式路径）
     → 依据 layers.json / analysis/* 实现目标技术栈组件（数值一律取自结构化数据，禁止截图估算）
+audit_restore.py  --layers <layers.json>[,...] --code <实现文件> --root auto \
+                  --var-file <base.css> --accept <accept.json> --fail-on-missing
+                                                              # → 交付门禁：缺口清零或登记（退出码 0 才交）
 ```
 
 每一步的输出均按 `PID/IID` 落在 `.lanhu` 下并在 `manifest.json` 标记完成状态；重跑同一张图直接命中缓存，无需重新请求蓝湖。
@@ -334,6 +340,8 @@ check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比�
 - [ ] **组件适配**：优先使用目标技术栈的 UI 库与项目已有组件（覆盖样式而非重造）；**先查目标项目根目录 `.zcode/skills/` 是否有项目级 UI 规约 skill（如 aiViewer 的 `aiviewer-ui-conventions`），有则按其映射表执行**；需覆盖样式时用 `:deep()` 或组件提供的样式 hook，不污染全局。
 - [ ] **布局**：flex 实现，无绝对定位 div 拼凑；关键元素（按钮、icon）未被压缩或隐藏。
 - [ ] **静态校验**：ESLint / vue-tsc 通过，无命名 / 类型警告。
+- [ ] **对账门禁（强制）**：`audit_restore.py --fail-on-missing` 退出码 0；报告里「设计有·代码未出现」为 0，或每一条都已在 `--accept` 清单写明原因（项目规范 / 产品决定 / 示例数据）。**不得只凭目测宣布还原完成**。
+- [ ] **布局实测（强制，脚本替代不了）**：在真实页面读 `getComputedStyle` + `getBoundingClientRect`，把关键容器的高度/间距/列宽与设计 `frame` 逐项对齐（如页头 92、区块间距 24、行高 58），并用截图目检一次。
 
 ## 12. Vue 3 输出规范
 

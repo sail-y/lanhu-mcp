@@ -1,0 +1,19 @@
+{
+  "_doc": "交付对账的已知偏差清单（audit_restore.py --accept）。登记「设计稿 ↔ 项目规范」已确认合规的项，登记后不再报，--fail-on-missing 也不再因它失败。建议按项目、按页面各存一份，随页面一起提交。",
+  "_fields": {
+    "ignore_texts": "设计稿里出现、但产品决定不做的文案（如去掉某个按钮）",
+    "ignore_colors": "设计稿的色值，但项目统一走组件库默认/主题色（如 placeholder #808080 vs EP #A8ABB2）。登记后该颜色关联的阴影也不再报",
+    "project_colors": "项目规范色（来自 base.css 变量或团队约定），出现在代码里视为合规，不算「代码自造」",
+    "ignore_radius": "不应视为设计圆角的值（如 symbol 实例字段的 2，真实形状另画）"
+  },
+  "ignore_texts": [],
+  "ignore_colors": [],
+  "project_colors": [],
+  "ignore_radius": [],
+  "_notes": {
+    "示例·文案": "ignore_texts: [\"保存标准\"] —— 产品确定去掉该按钮，非漏还原",
+    "示例·颜色": "ignore_colors: [[128,128,128,1]] —— 设计稿 placeholder 用 #808080，项目统一 EP 默认 #A8ABB2",
+    "示例·规范色": "project_colors: [[0,118,188,1]] —— --c6-main-theme-color",
+    "示例·圆角": "ignore_radius: [2] —— symbol 实例字段"
+  }
+}
