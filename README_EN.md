@@ -12,9 +12,15 @@
 [![GitHub Release](https://img.shields.io/github/v/release/dsphper/lanhu-mcp)](https://github.com/dsphper/lanhu-mcp/releases)
 [![Code of Conduct](https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-A powerful [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for automatically extracting and analyzing Lanhu design documents, including Axure prototypes, UI designs, image slices, with built-in team collaboration message board.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for reading Lanhu design documents, Axure prototypes, UI designs and source assets, with a server-local team message board.
 
-**Perfect integration with:**
+**v1.8.7 adds `socksio` for local stdio SOCKS proxies, optional `LANHU_DISABLE_SYSTEM_PROXY`, and a Docker-free stdio guide.** See [the release notes](RELEASE_NOTES_v1.8.7.md) and [LOCAL-STDIO.md](LOCAL-STDIO.md).
+
+**v1.8.6 adds focused requirement-region inspection by text, stable block ID, tile ID, or coordinates, and keeps long-page tiles full-width.** See [the release notes](RELEASE_NOTES_v1.8.6.md).
+
+**MCP client integration:**
+
+Client support depends on its MCP transport and image/resource capabilities. For visual design work, use a multimodal model and a client that can display MCP images and read resources.
 
 **International Mainstream AI IDEs**:
 - ✅ **Cursor** - Cursor AI directly reads Lanhu requirements and designs
@@ -45,19 +51,26 @@ English | [简体中文](README.md)
 **Perfect for**: Product Managers | Frontend Developers | Backend Developers | QA Engineers | UI Designers | Cursor Users | Windsurf Users | Claude Users | Trae Users | Tongyi Lingma Users | CodeBuddy Users | Wenxin Kuaima Users | Cline Users | Continue Users | AI Coding Enthusiasts
 
 ### 📋 Requirement Document Analysis
-- **Smart Document Extraction**: Automatically download and parse all pages, resources, and interactions from Axure prototypes
+- **Document Extraction**: Download and parse available pages and resources from Axure prototypes; interaction coverage depends on the source export
 - **Three Analysis Modes**:
   - 🔧 **Developer Perspective**: Detailed field rules, business logic, global flowcharts
   - 🧪 **Tester Perspective**: Test scenarios, test cases, boundary values, validation rules
   - 🚀 **Quick Explorer**: Core function overview, module dependencies, review points
 - **Four-Stage Workflow**: Global scan → Grouped analysis → Reverse validation → Generate deliverables
-- **Zero Omission Guarantee**: TODO-driven systematic analysis process
+- **Long-Page Visual Evidence**: Keep the original full screenshot for compatibility and add overlapping source-resolution detail tiles with page names and source coordinates
+- **Coverage Tracking**: A task-based analysis workflow helps identify omissions; completeness still needs review
 
 ### 🎨 UI Design Support
 - **Design Viewing**: Batch download and display UI design images
-- **Slice Extraction**: Automatically identify and export design slices and icon resources
-- **Smart Naming**: Auto-generate semantic filenames based on layer paths
-> **New**: Design restoration now prefers reading the raw Lanhu `sketch_json` layer tree (`get_sketch_json`) to extract exact parameters (`fills`, `borders`, `shadows`, `radius`, fonts, `letterSpacing`). Use `scripts/layout_intent.py`, `scripts/summarize_page.py`, `scripts/crop_icons.py` or the three new MCP tools to generate Vue/React code directly, without relying on flattened annotations.
+- **Versioned Visual Context — 1.8.0**: Pin a design snapshot, then inspect regions using a clean crop, a numbered overlay, stable node IDs and source styles
+- **Original Asset Delivery**: Select designer exports separately from auxiliary renderings; download and verify files, then install a portable bundle in the frontend project
+- **Source Format Selection**: Choose `original`, `prefer_svg` or `raster`; inspect available variants and explicit fallback results
+- **Typography Evidence**: Read mixed-style UTF-16 text runs and font requirements; font availability remains unchecked and missing style properties remain explicit
+- **Large Design Previews**: Use a preview bounded to a 4096-pixel long edge for oversized references, then request source-based regional detail where the image provider supports it
+
+The model interprets component roles and chooses how to use assets. Python preserves IDs, geometry, source fields and files; it does not infer semantics from layer names or guarantee a finished page's visual accuracy. See [Visual design context and asset delivery](DESIGN_CONTEXT.md) for the full contract and limitations.
+
+> **Addition in this fork**: a layer-tree based restoration path — read the raw Lanhu `sketch_json` tree to obtain exact `fills`, `borders`, `shadows`, `radius`, fonts and `letterSpacing` instead of flattened annotations. Ships `scripts/layout_intent.py`, `scripts/summarize_page.py`, `scripts/crop_icons.py` and four MCP tools (`lanhu_analyze_layout` / `lanhu_summarize_page` / `lanhu_crop_icons` / `lanhu_check_spacing`); see `skills/lanhu-design-restore/SKILL.md`.
 
 ### 💬 Team Collaboration Board - Breaking AI IDE Silos
 > 🌟 **Core Innovation**: Enable all developers' AI assistants to share team knowledge and context
@@ -77,29 +90,20 @@ English | [简体中文](README.md)
 - 👥 **Collaborator Tracking**: Auto-record which team member's AI accessed which documents, full transparency
 
 ### ⚡ Performance Optimization
-- **Smart Caching**: Permanent cache mechanism based on document version numbers
+- **Versioned Caching**: Reuse cached document resources; the new visual tools keep separate design snapshots
 - **Incremental Updates**: Only download changed resources
 - **Concurrent Processing**: Support batch page screenshots and resource downloads
 
 ## 🚀 Quick Start
 
-> ⚠️ **IMPORTANT: Vision-Capable AI Model Required!**
->
-> This project requires AI models with **image recognition and analysis capabilities**. Recommended 2025 mainstream vision models:
-> - 🤖 **Claude** (Anthropic)
-> - 🌟 **GPT** (OpenAI)
-> - 💎 **Gemini** (Google)
-> - 🚀 **Kimi** (Moonshot AI)
-> - 🎯 **Qwen** (Alibaba)
-> - 🧠 **DeepSeek** (DeepSeek)
->
-> Text-only models (e.g., GPT-3.5, Claude Instant) are NOT supported.
+> **Visual design tasks need a vision-capable model.** The client must display MCP image content to the model. Text-only clients can use document and metadata tools, but cannot interpret the design screenshots.
 
 ---
 
 ### Prerequisites
 
 - Python 3.10+
+- FastMCP `>=3.0.2,<4` and Pillow `>=10.4.0` (installed by the commands below)
 - Docker (optional, for containerized deployment)
 
 ### Installation
@@ -109,12 +113,28 @@ English | [简体中文](README.md)
 git clone https://github.com/dsphper/lanhu-mcp.git
 cd lanhu-mcp
 
-# Install dependencies
-pip install -r requirements.txt
+# Create an isolated environment, then install the package and Chromium
+python3 -m venv venv
+./venv/bin/python -m pip install -e .
+./venv/bin/python -m playwright install chromium
+cp .env.example .env
 
-# Or use uv (recommended)
-uv pip install -r requirements.txt
+# Windows equivalents
+python -m venv venv
+venv\Scripts\python.exe -m pip install -e .
+venv\Scripts\python.exe -m playwright install chromium
+copy .env.example .env
 ```
+
+Edit `.env` and replace `your_lanhu_cookie_here` with your Lanhu Cookie. macOS may still provide Python 3.9 as `/usr/bin/python3`; verify `python3 --version` before creating the environment. The bundled installer scripts prefer Aliyun PyPI with automatic Tsinghua/PyPI fallback and use npmmirror for Chromium; set `PIP_INDEX_URL` or `PLAYWRIGHT_DOWNLOAD_HOST` to override them.
+
+With `uv`, create the environment first: `uv venv venv --python 3.13`, then run `uv pip install --python venv/bin/python -e .`.
+
+For an existing source checkout, upgrade dependencies with `python -m pip install -U -r requirements.txt` and reinstall the package with `python -m pip install -e .`. Restart the server and reconnect the MCP client so it discovers all 17 tools. Docker users should rebuild the image; restarting an old image does not load the new package or dependencies.
+
+### Single-file deployment upgrades
+
+`lanhu_mcp_server.py` embeds the project's own `lanhu_design` implementation. In an environment where the declared third-party dependencies are installed, replacing this one file provides both requirement-document and design tools; copying a separate `lanhu_design/` directory is no longer required. A full repository, wheel, or Docker installation remains recommended for dependency upgrades.
 
 ### Configuration
 
@@ -169,7 +189,14 @@ export DEBUG="false"               # Debug mode (true/false)
 **Method 1: Direct Run**
 
 ```bash
-python lanhu_mcp_server.py
+# Linux/macOS
+./venv/bin/lanhu-mcp --transport http --host 127.0.0.1 --port 8000
+
+# Windows
+venv\Scripts\lanhu-mcp.exe --transport http --host 127.0.0.1 --port 8000
+
+# For a client that starts its own stdio server
+./run-stdio.sh
 ```
 
 Server will start at `http://localhost:8000/mcp`.
@@ -449,7 +476,7 @@ lanhu_say(
 
 ### Technical Advantages
 
-1. **Zero Learning Curve**: AI handles automatically, developers just chat naturally
+1. **Conversational Access**: Ask the connected AI to search and manage messages
 2. **Real-time Sync**: All AI assistants connect to same data source
 3. **Global Search**: Query knowledge base across projects
 4. **Version Association**: Messages auto-link to document version
@@ -468,16 +495,18 @@ Please help me analyze this requirement document:
 https://lanhuapp.com/web/#/item/project/product?tid=xxx&pid=xxx&docId=xxx
 ```
 
-**2. AI Automatically Executes Four-Stage Analysis**
+**2. AI Uses the Four-Stage Analysis Workflow**
 - ✅ STAGE 1: Global text scan, build overall understanding
 - ✅ STAGE 2: Grouped detailed analysis (based on selected mode)
-- ✅ STAGE 3: Reverse validation, ensure zero omission
+- ✅ STAGE 3: Reverse validation, check for missing requirements
 - ✅ STAGE 4: Generate deliverables (Requirement doc/Test plan/Review PPT)
 
 **3. Get Deliverables**
 - Developer Perspective: Detailed requirement doc + Global business flowchart
 - Tester Perspective: Test plan + Test case list + Field validation table
 - Quick Explorer: Review doc + Module dependency diagram + Discussion points
+
+In `full` mode, long pages retain the original full screenshot and include the first four detail tiles by default. If more tiles remain, call the tool again with the reported `tile_offset`; `tile_limit` is capped at 12 per page. Normal pages and `text_only` do not add screenshots.
 
 ### UI Design Viewing
 
@@ -486,9 +515,33 @@ Please show me this design:
 https://lanhuapp.com/web/#/item/project/stage?tid=xxx&pid=xxx
 ```
 
-### Design Restoration Workflow (New)
+### Visual Inspection and Asset Installation
 
-For the batch workflow of "writing frontend code from Lanhu designs", use the `lanhu/tools` scripts or the three new MCP tools directly, avoiding flattened annotations.
+```
+Use this design version to implement the page. Inspect its regions, select the
+source assets by node ID, prefer SVG where available, and install the asset
+bundle in this project's public directory.
+```
+
+The coding agent can execute this sequence:
+
+1. Find the design with `lanhu_get_designs`, then call `lanhu_get_design_overview` to obtain a stable `snapshot_id`.
+2. Call `lanhu_inspect_design_region` with source coordinates or node IDs. Use the clean image, numbered image, text runs and asset IDs together.
+3. Call `lanhu_export_design_assets` with the chosen `asset_ids` and `format_preference="prefer_svg"`. Check the export status, source resolution and fallback fields.
+4. Read the returned `bundle_resource` through MCP and install it **on the coding agent's machine**:
+
+```bash
+python -m lanhu_design.install \
+  --mcp-url 'http://localhost:8000/mcp' \
+  --resource-uri 'lanhu://design/SNAPSHOT_ID/bundle/BUNDLE_ID' \
+  --output '/absolute/path/to/frontend/public'
+```
+
+The installer verifies the manifest and hashes, then writes `install-receipt.json` with the asset/node IDs and actual local paths. The model uses that mapping to bind resources in code. The server's cache path is not a client path, and the legacy `lanhu_get_design_slices` tool returns a list rather than installing files. See [DESIGN_CONTEXT.md](DESIGN_CONTEXT.md) for local ZIP installation, text/font fields, version rules and limits.
+
+### Design Restoration Workflow (Fork Addition)
+
+For the batch workflow of "writing frontend code from Lanhu designs", use the `skills/lanhu-design-restore` scripts or the four added MCP tools, avoiding flattened annotations.
 
 **Recommended pipeline:**
 1. `lanhu_get_designs(url)` → get design list and `image_id`
@@ -504,20 +557,9 @@ For the batch workflow of "writing frontend code from Lanhu designs", use the `l
 - `lanhu_analyze_layout(layers_path, container_name)`
 - `lanhu_summarize_page(layers_path, page_name)`
 - `lanhu_crop_icons(layers_path, png_path, output_dir)`
+- `lanhu_check_spacing(layers_path, container_name, compare_with)`
 
 > For detailed restoration guidelines, see `skills/lanhu-design-restore/SKILL.md` (you can symlink this directory to `~/.codex/skills/lanhu-design-restore/`).
-
-### Slice Download
-
-```
-Download all slices from "Homepage Design"
-```
-
-AI will automatically:
-1. Detect project type (React/Vue/Flutter, etc.)
-2. Select appropriate output directory
-3. Generate semantic filenames
-4. Batch download slices
 
 ### Team Messages
 
@@ -541,14 +583,20 @@ Show all knowledge base messages about "testing"
 | Tool Name | Description | Use Case |
 |-----------|-------------|----------|
 | `lanhu_resolve_invite_link` | Parse invite link | When user provides share link |
+| `lanhu_list_product_documents` | Discover product documents in a project | Find a PRD/prototype before choosing its pages |
 | `lanhu_get_pages` | Get prototype page list | Must call before analyzing requirements |
-| `lanhu_get_ai_analyze_page_result` | Analyze prototype page content | Extract requirement details |
+| `lanhu_get_ai_analyze_page_result` | Analyze prototype pages; return full images and full-width detail strips for long pages | Extract requirement details |
+| `lanhu_inspect_requirement_region` | Return focused visual evidence by text, block ID, tile ID, or source coordinates | Resolve references such as “these two fields”, “below”, or “inside the red box” |
 | `lanhu_get_designs` | Get UI design list | Must call before viewing designs |
 | `lanhu_get_ai_analyze_design_result` | Analyze UI designs | View design drafts |
-| `lanhu_get_design_slices` | Get slice information | Download icons and assets |
+| `lanhu_get_design_slices` | Get legacy slice URLs and metadata | Inspect available resources without installing files |
+| `lanhu_get_design_overview` | Pin a version and return a visual snapshot with stable node IDs | Start visual implementation from a specific design |
+| `lanhu_inspect_design_region` | Inspect a region or nodes, clean/numbered crops, text runs and asset candidates | Connect visible elements to source specifications |
+| `lanhu_export_design_assets` | Download and verify original/SVG/raster variants; return a portable bundle | Install selected assets on the coding agent's machine |
 | `lanhu_analyze_layout` | Analyze container layout intent (center/fixed-left/full-width) | Before frontend layout restoration |
 | `lanhu_summarize_page` | Extract page spec summary from `layers.json` | Restore frontend page |
 | `lanhu_crop_icons` | Auto-crop icons from rendered design image | When slices are not marked by designer |
+| `lanhu_check_spacing` | Check container padding/margins/sibling gaps; compare same-name containers across pages | Spacing and alignment review |
 | `lanhu_say` | Post message | Team collaboration, @mentions |
 | `lanhu_say_list` | View message list | Query message history |
 | `lanhu_say_detail` | View message details | View full content |
@@ -556,27 +604,29 @@ Show all knowledge base messages about "testing"
 | `lanhu_say_delete` | Delete message | Remove messages |
 | `lanhu_get_members` | View collaborators | View team members |
 
+The 17 tools include a server-local `lanhu_say*` message board; those messages are not Lanhu's native design review comments.
+
 ## 📁 Project Structure
 
 ```
 lanhu-mcp-server/
 ├── lanhu_mcp_server.py          # Main server file
 ├── codex_stdio_bridge.py         # Codex stdio bridge (auto length/line framing)
+├── lanhu_design/                # Snapshots, regions, text, source variants and bundle installer
+├── DESIGN_CONTEXT.md            # Visual tool and asset delivery contract
 ├── scripts/                      # CLI entry points
 │   ├── fetch_sketch.py           # Fetch raw Lanhu sketch_json layer tree
 │   ├── extract_layers.py         # Extract structured layers.json (CLI entry)
 │   ├── verify_layers.py          # Verify layers.json integrity (CLI entry)
 │   ├── layout_intent.py          # Analyze container layout intent (CLI entry)
 │   ├── summarize_page.py         # Generate page spec summary (CLI entry)
-│   └── crop_icons.py             # Auto-crop icons from rendered image (CLI entry)
-├── lanhu/                        # Core design-data processing library
-│   ├── __init__.py
-│   └── tools/
-│       ├── layer_extractor.py    # sketch_json → layers.json
-│       ├── layer_verifier.py     # Verify layers.json
-│       ├── layout_analyzer.py    # Layout intent analysis
-│       ├── page_summarizer.py    # Page spec summary
-│       └── icon_cropper.py       # Icon auto-cropping
+│   ├── crop_icons.py             # Auto-crop icons from rendered image (CLI entry)
+│   └── embed_lanhu_design.py     # Regenerate the embedded lanhu_design blob
+├── skills/lanhu-design-restore/  # Restoration skill (SKILL.md + self-contained lanhu/tools)
+│   ├── SKILL.md
+│   ├── scripts/
+│   └── lanhu/tools/              # layer_extractor / layer_verifier / layout_analyzer
+│                                 # page_summarizer / icon_cropper / spacing_checker
 ├── .codex-plugin/                # Codex plugin metadata
 │   └── plugin.json
 ├── requirements.txt              # Python dependencies
@@ -584,7 +634,8 @@ lanhu-mcp-server/
 ├── data/                         # Data storage directory
 │   ├── messages/                 # Message data
 │   ├── axure_extract_*/          # Axure resource cache
-│   └── lanhu_designs/            # Design cache
+│   ├── lanhu_designs/            # Legacy design cache
+│   └── design_context/           # Versioned visual snapshots and asset bundles
 ├── logs/                         # Log files
 └── README.md                     # This document
 ```
@@ -605,7 +656,8 @@ ROLE_MAPPING_RULES = [
 
 ### Cache Control
 
-Cache directory is controlled by environment variable `DATA_DIR`:
+The cache directory is controlled by `DATA_DIR`. A relative path is anchored to the `.env` directory, or to the source directory when no `.env` exists, so changing the MCP client's working directory does not create a second cache. For requirement URLs containing `versionId`, an intact matching cache returns without first contacting Lanhu. `text_only` extracts text and annotations without screenshots or design-style scans. Long-page detail tiles use cache schema 4 in v1.8.6 and rebuild their metadata once. Tiles preserve the full content width, split only on the vertical axis, default to at most 960 pixels high, and overlap adjacent strips. `lanhu_inspect_requirement_region` does not run OCR: a unique text match returns tight and context crops; duplicates return candidate previews with stable block IDs; text baked into images can be located by tile ID or source coordinates.
+
 
 ```bash
 export DATA_DIR="/path/to/cache"
@@ -622,14 +674,15 @@ This project is designed for AI assistants with built-in "ErGou" assistant perso
 - 🎯 **Smart Analysis**: Automatically identify document types and best analysis modes
 - 📋 **TODO-Driven**: Systematic workflow based on task lists
 - 🗣️ **Natural Interaction**: Friendly conversational experience
-- ✨ **Proactive Service**: No manual operations needed, AI completes the full process
+- ✨ **Tool-Assisted Execution**: The model can inspect, select and install assets; implementation choices and visual verification remain its responsibility
 
-## 📊 Performance Metrics
+## 📊 Performance and Verification
 
-- ⚡ Page Screenshot: ~2 seconds/page (with cache)
-- 💾 Resource Download: Support resume and incremental updates
-- 🔄 Cache Hit: Permanent cache based on version numbers
-- 📦 Batch Processing: Support concurrent downloads and analysis
+- Screenshot latency depends on source size, browser startup, network and cache state; no universal timing or accuracy benchmark is claimed.
+- Verified asset files can be reused; the installer skips identical local files and rejects conflicting content.
+- Visual snapshots isolate versions and preserve image/node provenance. The new APIs do not change every legacy cache path.
+- An anonymized exploration covered 57 Sketch-source designs and 12 representative workflow scenarios. Before the oversized-image fix, 11 scenarios completed; the previously failing large-image case now passes bounded-preview and native-region checks through an installed package. Real Figma and Photoshop imports are not yet covered by that sample set.
+- Regression tests cover source identity, coordinates, versions, regional images, mixed text styles, variant selection and bundle installation. These are data/delivery checks, not a measured frontend reconstruction rate.
 
 ## 🐛 FAQ
 
@@ -644,7 +697,7 @@ A: Re-login to Lanhu web version, get new Cookie and update environment variable
 
 A: Ensure Playwright browsers are installed:
 ```bash
-playwright install chromium
+./venv/bin/python -m playwright install chromium
 ```
 </details>
 
@@ -683,7 +736,7 @@ Contributions are welcome! Please follow these steps:
 
 ```bash
 # Install development dependencies
-pip install -r requirements.txt
+python -m pip install -e '.[dev]'
 
 # Run tests
 python -m pytest tests/
@@ -710,7 +763,8 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 🗺️ Roadmap
 
-- [ ] Support more design platforms (Figma, Sketch)
+- [ ] Validate more real Figma and Photoshop imports; current cross-project samples are Sketch-source designs
+- [ ] Add implementation screenshot/DOM comparison and font availability checks
 - [ ] Web management interface
 - [ ] More analysis dimensions (Effort estimation, Tech stack recommendations)
 - [ ] Enterprise-level permission management
@@ -742,8 +796,9 @@ This project (Lanhu MCP Server) is a **third-party open source project**, indepe
 - Developers are not responsible for any data loss, account issues, or other damages caused by using this project
 
 **Data and Privacy:**
-- This project processes and caches data locally, and does not transmit your data to third-party servers
-- Your Lanhu Cookie and project data are only stored in your local environment
+- This project reads Lanhu APIs and asset CDNs and caches data on the configured MCP server. A remote deployment stores that cache on the server, not on each client.
+- Optional Feishu notifications send message content to the configured webhook. Export bundles and images are transferred to requesting MCP clients.
+- Keep the configured Lanhu Cookie, project cache and exported bundles private; the service uses one configured account rather than per-caller Lanhu authorization.
 - Please keep your credentials secure and do not share them with others
 
 **Open Source License:**
@@ -780,4 +835,4 @@ If you have any questions or suggestions, please feel free to communicate with u
 
 ---
 
-<!-- Last checked: 2026-08-16 04:32 -->
+<!-- Last checked: 2026-09-11 02:59 -->

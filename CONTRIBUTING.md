@@ -55,7 +55,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 5. 安装开发依赖
-pip install -r requirements.txt
+python -m pip install -e '.[dev]'
 pip install black flake8 pytest pytest-cov
 ```
 
@@ -259,7 +259,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 5. Install development dependencies
-pip install -r requirements.txt
+python -m pip install -e '.[dev]'
 pip install black flake8 pytest pytest-cov
 ```
 
@@ -348,4 +348,4 @@ If you have any questions, feel free to:
 
 Thank you for contributing! 🎉
 
-<!-- Last checked: 2026-08-16 04:32 -->
+<!-- Last checked: 2026-09-11 02:59 -->
