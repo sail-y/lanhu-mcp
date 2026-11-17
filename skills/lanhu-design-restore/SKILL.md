@@ -30,13 +30,17 @@ description: 从蓝湖（Lanhu）设计稿原始图层树（sketch JSON）取数
 1. **数据驱动**：还原是纯数据驱动，视觉（多模态看图 / 像素处理）不参与取值，仅承担质检（确认缝隙、边框可见边等偏差）与兜底（仅有位图、无结构化数据时）两个角色。
 2. **权威数据源唯一**：只有原始图层树（sketch JSON）可用于像素级还原；标注降级模式（拍平散件）禁止使用。
 3. **数值可追溯**：每个样式值必须可追溯到 sketch 字段；禁止以估算、目测、像素采样代替。
+4. **全文优先，摘要只做索引**：`layers.json` 是唯一完整数据源，**必须整份读取**（一个典型页面约 500–600 节点、70–160k tokens，现代长上下文模型一次可读完）。`page_summary.json` 只是六类元素的导航索引（cards/inputs/buttons/switches/icons/text_styles），**不含层级关系、也不含大多数节点的样式**——只读摘要会导致结构错漏，这是历史上还原出错的主要原因。
 
 ### 2.1 数据源对照
 
 | 形态 | 数据来源 | 内容 | 结论 |
 |------|---------|------|------|
 | 标注降级（拍平散件） | `lanhu_get_ai_analyze_design_result` | 每图层一个绝对定位 div + data-css，仅坐标与简单 css | 丢失组件分组、背景形状、渐变 / 精确 border/shadow、字体 letterSpacing，**禁止用于像素级还原** |
-| 原始图层树 | `get_sketch_json` | 完整容器层级、fills（含渐变 stops）、borders、shadows、字体（name/size/letterSpacing/align/color） | **唯一权威数据源** |
+| 原始图层树 | `get_sketch_json` + 上游 `lanhu_design.normalize` | 完整容器层级、fills（含渐变 stops）、borders、shadows、字体（name/size/letterSpacing/align/color），另加**稳定 node_id / 坐标归一 / gaps 诊断 / 素材变体** | **唯一权威数据源** |
+
+> **取数引擎**：`extract_layers.py` 优先调用上游 `lanhu_design.normalize.normalize_design()`——稳定身份（源 id，重名降级为 pointer 哈希）、坐标归一（Figma 混合原点）、三格式支持（sketch 扁平 `info[]` / figma `artboard` / photoshop `board`）、`gaps[]` 诊断、素材变体（区分 designer export 与 render fallback）都来自它。
+> 产物形状仍是本 skill 的 `layers.json`（`style` 已解释成 CSS、`text` 已整理成字段），并新增 `node_id` / `source_frame` / 根节点 `_meta`。上游包不可用时自动回退到本地 `walk`（`_meta.engine = "legacy_walk"`）。
 
 ### 2.2 降级与视觉定位
 
@@ -67,10 +71,12 @@ description: 从蓝湖（Lanhu）设计稿原始图层树（sketch JSON）取数
 **A2. 拉取原始图层树**
 
 ```bash
-python scripts/fetch_sketch.py <project_id> <image_id> [--team_id TEAM_ID] [--workdir <DIR>] [--render <render.png>]
+python scripts/fetch_sketch.py <project_id> <image_id> [--team_id TEAM_ID] [--version-id VID] [--workdir <DIR>] [--render <render.png>]
 ```
 
 输出 `.lanhu/projects/<PID>/images/<IID>/raw/sketch.json`，写 `manifest.json` 标记 `fetched`；`--render` 将本地渲染图拷入 `raw/render.png`。
+
+**版本固定**：不传 `--version-id` 时取最新版，但无论是否指定，都会把 `version_id / version_name / sha256 / json_url` 写入 `raw/sketch.meta.json`，并在 `layers.json._meta.source_version` 里带出。同一条命令两次跑出不同数值时，先比对这个文件——分得清是稿子改了还是代码改了。要复现历史结果就显式传 `--version-id`。
 
 **A3. 结构化提取**
 
@@ -78,7 +84,10 @@ python scripts/fetch_sketch.py <project_id> <image_id> [--team_id TEAM_ID] [--wo
 python scripts/extract_layers.py --project-id <PID> --image-id <IID> [--workdir <DIR>]
 ```
 
-输出 `layers.json`（name/type/frame/style[fills/gradients/borders/shadows/radius]/text[font/letterSpacing]，色值转 rgba()），标记 `layers_extracted`。亦支持显式路径 `extract_layers.py <sketch.json> <out.json>`。
+输出 `layers.json`（name/type/**node_id**/frame/**source_frame**/style[fills/gradients/borders/shadows/radius]/text[font/letterSpacing]，色值转 rgba()），根节点带 `_meta`：
+`engine`（`upstream_normalize` / `legacy_walk`）、`coordinate_mapping`（`verified` / `strategy`）、`gaps` + `gaps_summary`、`assets`（含 `kind`: `exported_asset` 或渲染兜底）、`source_version`。标记 `layers_extracted`。亦支持显式路径 `extract_layers.py <sketch.json> <out.json>`。
+
+**定位一律优先用 `node_id`**：`frame` 是坐标归一后的值（画板本地空间），`source_frame` 是原始值，需要追溯时用后者。
 
 **A4. 提取校验（门禁）**
 
@@ -94,8 +103,24 @@ python scripts/verify_layers.py --project-id <PID> --image-id <IID> [--workdir <
 4. 阴影含 inset。
 5. rotationDeg≠0 的节点列表（人工确认）。
 6. 传入 sketch.json 时抽查文本 color/fontWeight 与原始一致。
+7. `node_id` 齐全且唯一（缺 id / 重复 = 0）。
+8. `_meta.coordinate_mapping.verified` 为 true；为 false 时区域裁图与素材导出都不可信，须先查 `unresolved_node_ids`。
+9. `_meta.gaps_summary` 无阻断项（`nonzero_canvas_origin_unverified` / `unsupported_source_structure` / `missing_canvas_dimensions`）；`transform_preserved_not_applied` 属已知行为，不算失败。
 
 失败时修复提取逻辑并重跑 A3–A4，**不得携带缺失数据进入阶段 B**。
+
+**A5. 读取全文（必做，取数主路径）**
+
+把 `layers.json` **整份读进上下文**，它是后续所有数值的唯一来源。按页面规模选一种读法：
+
+| 规模 | 读法 |
+|------|------|
+| ≤ 800 节点（多数页面） | 一次读完整份 `layers.json` |
+| > 800 节点 | **两级读**：① 先读骨架（只取 `name/type/frame` 与 `children` 结构，约 15–20k tokens）确认整页骨架；② 再按组件读子树（每个容器 7–10k tokens），边实现边读 |
+
+- 只读 `page_summary.json` 或只看自己关心的几个容器**不算读过全文**；未读过全文就动手实现，视为流程违规。
+- 读全文后先列出「页面骨架清单」（根容器 → 一级区块 → 各区块内的卡片/表单/表格），作为 C1 实现的施工顺序。
+- 若模型上下文确实放不下（超长报表页），按区块分批读，但**每个区块必须读完整子树**，不得跨区块拼凑。
 
 ### 阶段 B：分析与校验
 
@@ -107,28 +132,45 @@ python scripts/layout_intent.py --project-id <PID> --image-id <IID> [容器名] 
 
 输出 `analysis/layout_intent.json`，判断版心策略（center / full-width / fixed-left），避免把应居中的内容区实现为固定 `padding-left`。
 
-**B2. 页面规格摘要（可选）**
+**B2. 页面规格摘要（可选，仅作导航索引）**
 
 ```bash
 python scripts/summarize_page.py --project-id <PID> --image-id <IID> [page_name] [--workdir <DIR>]
 ```
 
-输出 `analysis/page_summary.json`（cards / inputs / buttons / switches / icons / text_styles），建立全局样式锚点。
+输出 `analysis/page_summary.json`（cards / inputs / buttons / switches / icons / text_styles），用于**快速建立「这页有哪些卡片/表单/按钮」的索引**、发现容易漏掉的元素。
 
-**B3. 切图获取（按需，含决策链）**
+- ✅ 可用作：元素清单核对、全局样式锚点（主色/圆角/字号分布）、MCP 工具入参。
+- ❌ 不得用作：数值来源、结构来源。摘要是有损投影——六类以外不覆盖、层级关系不保留。任何写进代码的值必须回到 `layers.json`（A5）核对。
 
-切图资源按以下决策链获取，**有真图用真图，无真图才裁剪占位图**：
+**B3. 图标 / 切图获取（按需，含决策链）**
 
-1. 检测 sketch 树是否含设计师标注的 slice（`total_slices > 0`）：
+资源按以下顺序获取：**先复用既有图标库 → 再设计师切图 → 最后从设计稿裁占位图；严禁手绘自造**。
+
+0. **先查既有图标库（第一步，必做）**：在项目存量资源里找与设计稿同款的图标——
+   雪碧图 `src/assets/icons/**`（`IconSvg` 按 `icon-[dir]-[name]` 引用）、图片 `src/assets/images/**`、既有页面的图标用法。
+   - **比对必须并排渲染核对**：把候选既有图标与设计稿裁图同屏渲染、截图比对（名字相同不代表同款——`AI_edit_blue` 是"铅笔+横线"，与设计稿的"笔+圆角方框"并非同款）。
+   - 命中的**直接复用，不新增文件**；同一构造只保留一份（如两页共用的标题小标）。
+1. 无可复用时，检测 sketch 树是否含设计师标注的 slice（`total_slices > 0`）：
    ```bash
    python scripts/download_slices.py --project-id <PID> --image-id <IID> [--workdir <DIR>]
    ```
    有 slice → 下载真图到 `slices/`（png/svg，通常 2x），标记 `slices_downloaded`；无 slice → 脚本提示改用下一步。
-2. 无 slice 时从渲染图裁剪占位图：
+2. 以上都没有，才从渲染图裁剪**占位图**：
    ```bash
    python scripts/crop_icons.py --project-id <PID> --image-id <IID> [--workdir <DIR>] [--fmt webp|png] [--name-map x.json]
    ```
    输出 `icons/*.webp`（默认 webp，失败自动回退 png），标记 `icons_cropped`。
+   同时写 `icons/icons_manifest.json`，其中 `source: "render_placeholder"` + `provenance` 标明「非原始素材」；`saved[].source` 也会逐张打标，供后续核对。
+   需要在具体框位精裁（如卡片标题小标、菜单项图标）时，用 `raw/render.png` + 设计框 × 渲染倍率（通常 2x）自裁：
+   ```python
+   im = Image.open('<IID>/raw/render.png'); scale = im.size[0] / <artboard.width>
+   im.crop(tuple(int(v * scale) for v in (left, top, right, bottom))).save(out, 'WEBP', quality=95)
+   ```
+   ⚠️ 裁图与复用都要在**代码里注明来源**：裁图注明「设计师未切图，暂用设计稿渲染图裁的占位图」，复用注明取自既有哪个图标——正式切图到位后只替换文件、不改代码。
+
+> **可选：上游 MCP 的真原件交付**。若 MCP 端为上游 1.8.0+（含 `lanhu_export_design_assets`），它下载的是设计师导出的原始文件并校验像素/哈希，比本 skill 的 slice 下载更严（区分 designer export 与 render fallback、支持 `prefer_svg`）。
+> 有该工具时**优先用它取素材**，`download_slices.py` 作为离线/无 MCP 时的等价路径，`crop_icons.py` 只在两者都拿不到时兜底。
 
 **B4. 容器间距校验（门禁）**
 
@@ -185,10 +227,11 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 
 | 属性 | 来源字段 | 禁止来源 |
 |------|---------|---------|
-| 坐标 / 尺寸 | `frame.left/top/width/height` | 绝对定位 div 坐标 |
+| 节点身份 | `node_id`（稳定，重名也不冲突） | 仅靠 `name`（实测一个 584 节点页面有 68 组重名、涉及 414 个节点） |
+| 坐标 / 尺寸 | `frame.left/top/width/height`（已归一）；追溯原始值用 `source_frame` | 绝对定位 div 坐标 |
 | 背景 / 渐变 | `style.fills`（含 stops） | PNG 像素采样 |
 | 边框 | `style.borders` | 截图目测 |
-| 圆角 | `paths[].radius`（topLeft/topRight/bottomLeft/bottomRight） | `node.radius` / 截图 |
+| 圆角 | `paths[].radius`（topLeft/topRight/bottomLeft/bottomRight） | `node.radius`（常见空数组）/ 截图 |
 | 阴影 | `style.shadows` | 截图估算 |
 | 字体 | `text.font/name/size/letterSpacing/align/color` | 截图目测 |
 | 间距 | 子层 `frame` 差值（如 child.left - parent.left = padding） | 标注模式的 measurements |
@@ -216,6 +259,7 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 3. **层级归属**：每个视觉元素先确认所属容器及其边界。两层容器（大容器 + 小面板）本质是留白意图，应合并为一个容器 + padding/margin；`path` 为单线描边（边框边数按像素扫描确认）。
 4. **逐图核对**：同一页面存在多个 tab / 状态 / 弹窗时，每个状态对应一张独立设计图，必须逐图核对容器样式（fills/borders/shadows/radius/padding 全维度），禁止将一张图的结论推断到另一张图。共用骨架（导航、外壳、左右面板）可复用结论，内容区必须逐图核对。
 5. **坐标换算**：设计稿画布坐标换算到响应式布局时，用组件容器 frame 的起点与宽度推导间距，不使用文字图层坐标。`frame.left` 不得直接转成固定左偏移 / `padding-left`：先计算 `(artboard.width - frame.left - frame.width)`；左右空白接近时优先 `max-width + margin: 0 auto` 居中，仅当明显对应真实侧边栏 / 出血区时才用固定偏移。
+6. **坐标空间**：取数走上游 normalize 时，`layers.json._meta.coordinate_mapping` 给出 `verified` / `strategy`，`layout_intent.json` 的 `coordinate_space` 会标 `upstream_normalized` 并带出该标记——**`verified=false` 时不要信任何区域裁图/导出**。走本地回退引擎（`legacy_walk`）时才会用采样越界量判定（`space` / `dx` / `dy` / `evidence`）；任何情况下都别用单个节点的 `left < 0` 去猜，浮点噪声（`-0.000244`）会把它带偏 100+ 像素。
 
 ## 9. 禁止条例（硬性红线，违反即返工）
 
@@ -224,10 +268,13 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 3. 禁止使用“看起来差不多”“大约”等估算替代 sketch 树数值。
 4. 禁止将一张设计图的结论推断到另一张图；每个 tab / 状态必须逐图核对。
 5. 禁止把 `frame.left` 直接实现为固定左偏移 / `padding-left`（先计算画布余量再决策，见 §8.5）。
+6. 禁止只读 `page_summary.json`（或只看自己感兴趣的容器）就动手实现——必须先按 A5 读全文/读完区块子树。
 6. 禁止按旋转后 bbox 绘制旋转元素（`rotationDeg≠0` 必须 CSS `transform: rotate`）。
 7. 禁止为单个元素创建额外 CSS class；禁止整页 `transform: scale(...)`。
 8. 禁止忽略树层级自行猜测父子关系。
 9. 禁止把 sketch.json / layers.json / 渲染 png 散落在工作目录或临时目录（必须落 `.lanhu/`）。
+10. **禁止手绘 / 自造近似图标**（含用 CSS、emoji、自写 SVG 拼一个"大致像"的图标）。图标只能来自三者之一：**既有图标库复用、设计师 slice、设计稿裁图**；三者都无来源时先与用户确认，不得自造交付。
+11. **禁止重复添加资源**：新增任何图标 / 切图前，先检索既有资源库与本次已引入的资源，同款复用同一份文件；清理阶段删掉未被引用的新增资源。
 
 ## 10. CLI 工具参考
 
@@ -235,7 +282,7 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 
 | 脚本 | 用途 | 标准调用（.lanhu 模式） |
 |------|------|------------------------|
-| `fetch_sketch.py` | 拉取原始图层树 | `python scripts/fetch_sketch.py <PID> <IID> [--workdir <DIR>] [--render x.png]` |
+| `fetch_sketch.py` | 拉取原始图层树 + 版本固定 | `python scripts/fetch_sketch.py <PID> <IID> [--version-id VID] [--workdir <DIR>] [--render x.png]` |
 | `extract_layers.py` | 提取结构化图层树 | `python scripts/extract_layers.py --project-id <PID> --image-id <IID> [--workdir <DIR>]` |
 | `verify_layers.py` | 提取完整性校验 | `python scripts/verify_layers.py --project-id <PID> --image-id <IID> [--workdir <DIR>]` |
 | `layout_intent.py` | 布局意图分析 | `python scripts/layout_intent.py --project-id <PID> --image-id <IID> [容器名] [--workdir <DIR>]` |
@@ -250,10 +297,12 @@ python scripts/check_spacing.py --project-id <PID> --image-id <IID> [容器名] 
 fetch_sketch.py   --project-id PID --image-id IID            # → raw/sketch.json (+ raw/render.png)
 extract_layers.py --project-id PID --image-id IID            # → layers.json
 verify_layers.py  --project-id PID --image-id IID            # → analysis/verify.json（门禁）
+# ★ 整份读取 layers.json（见 A5）—— 取数主路径，不可跳过
 layout_intent.py  --project-id PID --image-id IID            # → analysis/layout_intent.json
-summarize_page.py --project-id PID --image-id IID            # → analysis/page_summary.json
-download_slices.py --project-id PID --image-id IID           # → slices/*（有 slice 时）
-crop_icons.py     --project-id PID --image-id IID            # → icons/*.webp（无 slice 时兜底）
+summarize_page.py --project-id PID --image-id IID            # → analysis/page_summary.json（仅索引，非数值来源）
+# ↓ 图标：先复用既有图标库（无命令，检索 src/assets/icons|images + 并排渲染比对），命中则跳过下面两步
+download_slices.py --project-id PID --image-id IID           # → slices/*（设计师真图，优先）
+crop_icons.py     --project-id PID --image-id IID            # → icons/*.webp（无 slice 时兜底，来源标 render_placeholder）
 check_spacing.py  --project-id PID --image-id IID '容器名'    # → analysis/spacing.json（门禁）
 check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比（显式路径）
     → 依据 layers.json / analysis/* 实现目标技术栈组件（数值一律取自结构化数据，禁止截图估算）
@@ -266,6 +315,8 @@ check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比�
 按优先级执行；任何不确定项应回退到数据核对，而非目测判断。
 
 - [ ] **数据源**：所有尺寸 / 样式取值来自 `sketch.json` / `layers.json`，未使用 `lanhu_get_ai_analyze_design_result` 的拍平散件。
+- [ ] **读过全文**：已按 A5 整份读取 `layers.json`（或按区块读完每个子树），未仅依赖 `page_summary.json` 就动手实现；页面骨架清单已列出。
+- [ ] **定位方式**：定位容器/元素用 `node_id`（而非仅用 name）；若报告或日志里出现同名多个，已回 `layers.json` 用 id 消歧。
 - [ ] **结构盘点**：已打印整棵树的容器层级（name + frame + fill + border + children），理解“大容器→留白→子区域”骨架。
 - [ ] **多图比对（可选，仅当页面存在多个 tab / 状态 / 弹窗时）**：每个状态对应一张独立设计图，已分别核对样式，未将一张图的结论推断到另一张图。
 - [ ] **间距归属**：每个间距已按决策表归到正确层级——“一致”用父 padding/gap、“个别”用子 margin；垂直间距优先 padding/gap；组件内部用 padding，组件之间用 gap 或子 margin。
@@ -278,8 +329,9 @@ check_spacing.py  --compare a.json b.json --name '容器名'    # 跨页对比�
 - [ ] **圆角**：使用 `paths[].radius`，未按 bbox 画矩形。
 - [ ] **字体**：font name/size/weight/letterSpacing/align 已对应；letter-spacing 已按 em 表达（见 §12.5）。
 - [ ] **阴影**：`style.shadows` 读取 offset/blur/spread/color，inset 已标注。
-- [ ] **切图（可选，仅当存在图标 / 占位图且设计师未提供 slice 时）**：图标已切为占位图，并在代码中标注“设计师未切图，暂用占位图”。
-- [ ] **组件适配**：优先使用目标技术栈的 UI 库与项目已有组件（覆盖样式而非重造）；需覆盖样式时用 `:deep()` 或组件提供的样式 hook，不污染全局。
+- [ ] **图标来源（强制）**：逐个图标标注来源——「既有库复用（写明取自哪个图标）/ 设计师 slice / 上游 export 原件 / 设计稿裁图（占位）」；**无手绘自造**；已输出两份清单：复用了哪些既有图标、新增了哪些资源，二者无重复项。用了 `crop_icons.py` 时已确认 `icons/icons_manifest.json` 里 `source=render_placeholder`，且代码注释写明占位。
+- [ ] **切图（可选，仅当存在图标 / 占位图且设计师未提供 slice 时）**：无既有可复用项的图标已切为占位图，并在代码中标注“设计师未切图，暂用占位图”。
+- [ ] **组件适配**：优先使用目标技术栈的 UI 库与项目已有组件（覆盖样式而非重造）；**先查目标项目根目录 `.zcode/skills/` 是否有项目级 UI 规约 skill（如 aiViewer 的 `aiviewer-ui-conventions`），有则按其映射表执行**；需覆盖样式时用 `:deep()` 或组件提供的样式 hook，不污染全局。
 - [ ] **布局**：flex 实现，无绝对定位 div 拼凑；关键元素（按钮、icon）未被压缩或隐藏。
 - [ ] **静态校验**：ESLint / vue-tsc 通过，无命名 / 类型警告。
 
