@@ -172,7 +172,8 @@ def download_slices(sketch: dict, out_dir: Path, cookie: str | None = None) -> d
     """
     items = _find_slices(sketch)
     if not items:
-        return {"status": "no_slices", "total": 0, "downloaded": 0, "failed": []}
+        return {"status": "no_slices", "total": 0, "downloaded": 0, "failed": [],
+                "source": "designer_slice"}
 
     headers = {"User-Agent": "Mozilla/5.0"}
     if cookie:
@@ -200,7 +201,9 @@ def download_slices(sketch: dict, out_dir: Path, cookie: str | None = None) -> d
                 failed.append({"name": item["name"], "url": item["download_url"], "error": str(exc)})
 
     status = "success" if not failed else "partial"
-    return {"status": status, "total": len(items), "downloaded": downloaded, "failed": failed}
+    return {"status": status, "total": len(items), "downloaded": downloaded, "failed": failed,
+            "source": "designer_slice",
+            "provenance": "设计师在蓝湖标注导出的原始切图（真图，可直接使用）"}
 
 
 def main() -> None:

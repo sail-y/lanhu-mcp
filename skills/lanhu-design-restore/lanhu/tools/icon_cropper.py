@@ -142,6 +142,9 @@ def crop_icons(layers_path: str, png_path: str, output_dir: str,
                 'frame': fr,
                 'crop_px': [left, top, right, bottom],
                 'size_px': [right - left, bottom - top],
+                'source': 'render_placeholder',
+                'source_png': str(png_path),
+                'provenance': '设计师未切图，由渲染图裁剪的占位图（非原始素材）',
             })
         except Exception as e:
             # webp 失败时回退 png
@@ -156,12 +159,29 @@ def crop_icons(layers_path: str, png_path: str, output_dir: str,
                         'crop_px': [left, top, right, bottom],
                         'size_px': [right - left, bottom - top],
                         'fallback': 'png',
+                        'source': 'render_placeholder',
+                        'source_png': str(png_path),
+                        'provenance': '设计师未切图，由渲染图裁剪的占位图（非原始素材）',
                     })
                     continue
                 except Exception as e2:
                     errors.append({'name': raw_name, 'error': str(e2)})
                     continue
             errors.append({'name': raw_name, 'error': str(e)})
+
+    # 把来源写进清单，避免模型/人把占位图当设计师切图用
+    manifest = {
+        'source': 'render_placeholder',
+        'source_png': str(png_path),
+        'scale': [scale_x, scale_y],
+        'provenance': '设计师未切图，由渲染图裁剪的占位图（非原始素材）；正式切图到位后只替换文件，不改代码',
+        'icons': [{'layer_id': s['layer_id'], 'path': s['path'], 'size_px': s['size_px']} for s in saved],
+    }
+    try:
+        (output_dir / 'icons_manifest.json').write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=1), encoding='utf-8')
+    except Exception as e:
+        errors.append({'name': 'icons_manifest.json', 'error': str(e)})
 
     return {
         'status': 'success' if not errors else 'partial',
