@@ -542,15 +542,6 @@ def _format_lanhu_rfc2822(value: Optional[str]) -> Optional[str]:
     except Exception:
         return value
 
-# Codex 的 stdio 帧格式兼容层（本 fork 自加）。单文件部署（只替换 lanhu_mcp_server.py）
-# 时该文件可能不存在，缺失则退回标准 MCP stdio 实现，不影响其余工具。
-try:
-    import codex_stdio_bridge
-
-    codex_stdio_bridge.install()
-except ImportError:
-    pass
-
 import httpx
 from fastmcp import Context
 from bs4 import BeautifulSoup

@@ -559,7 +559,7 @@ For the batch workflow of "writing frontend code from Lanhu designs", use the `s
 - `lanhu_crop_icons(layers_path, png_path, output_dir)`
 - `lanhu_check_spacing(layers_path, container_name, compare_with)`
 
-> For detailed restoration guidelines, see `skills/lanhu-design-restore/SKILL.md` (you can symlink this directory to `~/.codex/skills/lanhu-design-restore/`).
+> For detailed restoration guidelines, see `skills/lanhu-design-restore/SKILL.md` (you can link this directory into your AI client's skills directory, e.g. `~/.zcode/skills/` or `~/.agents/skills/`).
 
 ### Team Messages
 
@@ -611,7 +611,6 @@ The 17 tools include a server-local `lanhu_say*` message board; those messages a
 ```
 lanhu-mcp-server/
 ├── lanhu_mcp_server.py          # Main server file
-├── codex_stdio_bridge.py         # Codex stdio bridge (auto length/line framing)
 ├── lanhu_design/                # Snapshots, regions, text, source variants and bundle installer
 ├── DESIGN_CONTEXT.md            # Visual tool and asset delivery contract
 ├── scripts/                      # CLI entry points
@@ -627,8 +626,6 @@ lanhu-mcp-server/
 │   ├── scripts/
 │   └── lanhu/tools/              # layer_extractor / layer_verifier / layout_analyzer
 │                                 # page_summarizer / icon_cropper / spacing_checker
-├── .codex-plugin/                # Codex plugin metadata
-│   └── plugin.json
 ├── requirements.txt              # Python dependencies
 ├── Dockerfile                    # Docker image
 ├── data/                         # Data storage directory

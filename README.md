@@ -426,7 +426,7 @@ https://lanhuapp.com/web/#/item/project/stage?tid=xxx&pid=xxx
 - `lanhu_summarize_page(layers_path, page_name)`
 - `lanhu_crop_icons(layers_path, png_path, output_dir)`
 
-> 详细还原规范参考仓库内 `skills/lanhu-design-restore/SKILL.md`（使用时可将该目录 symlink 到 `~/.codex/skills/lanhu-design-restore/`）。
+> 详细还原规范参考仓库内 `skills/lanhu-design-restore/SKILL.md`（使用时可将该目录链接到你所用的 AI 客户端的 skills 目录，例如 `~/.zcode/skills/` 或 `~/.agents/skills/`）。
 
 ### 切图下载
 
@@ -831,7 +831,6 @@ lanhu_say(
 ```
 lanhu-mcp-server/
 ├── lanhu_mcp_server.py          # 主服务器文件（内嵌 lanhu_design 实现）
-├── codex_stdio_bridge.py         # Codex stdio 桥接（自动识别 length/line 帧）
 ├── lanhu_design/                 # 版本化快照 / 区域裁图 / 文本 / 源素材变体 / 资源包安装器
 ├── DESIGN_CONTEXT.md             # 设计稿工具与资源交付契约
 ├── scripts/                      # CLI 脚本入口
@@ -847,8 +846,6 @@ lanhu-mcp-server/
 │   ├── scripts/
 │   └── lanhu/tools/              # layer_extractor / layer_verifier / layout_analyzer
 │                                 # page_summarizer / icon_cropper / spacing_checker
-├── .codex-plugin/                # Codex 插件元数据
-│   └── plugin.json
 ├── requirements.txt              # Python 依赖
 ├── Dockerfile                    # Docker 镜像
 ├── docker-compose.yml            # Docker Compose 配置

@@ -78,13 +78,6 @@ def main():
 
     load_mcp_env()
 
-    # lanhu_mcp_server.py 无条件 import codex_stdio_bridge（IDE MCP 运行时的 stdio 桥接，独立运行时不存在）。
-    # fetch 只需 LanhuExtractor 做 HTTP，注入 stub 绕过该桥接（install 为 no-op）。
-    import types
-    _stub = types.ModuleType('codex_stdio_bridge')
-    _stub.install = lambda: None
-    sys.modules['codex_stdio_bridge'] = _stub
-
     spec = importlib.util.spec_from_file_location('lanhu_mcp_server', server)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
